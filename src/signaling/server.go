@@ -43,15 +43,7 @@ func EchoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func PubSubHandler(conn *websocket.Conn, name string) {
-	pubsubClient := redisClient.PubSub()
-	defer pubsubClient.Close()
-
-	if err := pubsubClient.Subscribe(name); err != nil {
-		logger.Printf("[%s][%s][error] Could not subscribe to topic %s, because %s", conn.RemoteAddr(), name,  name, err)
-		conn.Close()
-	}
-
+func PubSubHandler(conn *websocket.Conn, pubsubClient *redis.PubSub) {
 	for {
 		i, _ := pubsubClient.Receive()
 
@@ -60,17 +52,17 @@ func PubSubHandler(conn *websocket.Conn, name string) {
 			bytes_blob := []byte(msg.Payload)
 
 			if err := json.Unmarshal(bytes_blob, &json_blob); err != nil {
-				logger.Printf("[%s][%s][error] failed to parse JSON %v, because %v", conn.RemoteAddr(), name, msg.Payload, err)
+				logger.Printf("[%s][error] failed to parse JSON %v, because %v", conn.RemoteAddr(), msg.Payload, err)
 				continue
 			}
 
 			if err := conn.WriteJSON(json_blob); err != nil {
-				logger.Printf("[%s][%s][error] failed to send JSON, because %v", conn.RemoteAddr(), name, err)
+				logger.Printf("[%s][error] failed to send JSON, because %v", conn.RemoteAddr(), err)
 				conn.Close()
 				break
 			}
 
-			logger.Printf("[%s][%s][send] OK", conn.RemoteAddr(), name)
+			logger.Printf("[%s][send] OK", conn.RemoteAddr())
 		}
 	}
 }
@@ -88,7 +80,31 @@ func DeviceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer conn.Close()
-	PubSubHandler(conn, name)
+	logger.Printf("Subscribing to %s", name)
+
+	pubsubClient := redisClient.PubSub()
+	defer pubsubClient.Close()
+
+	if err := pubsubClient.Subscribe(name); err != nil {
+		logger.Printf("[%s][%s][error] Could not subscribe to topic %s, because %s", conn.RemoteAddr(), name,  name, err)
+		return
+	}
+
+	go PubSubHandler(conn, pubsubClient)
+
+	for {
+		mt, message, err := conn.ReadMessage()
+		if err != nil {
+			log.Println("read:", err)
+			break
+		}
+		log.Printf("recv: %s", message)
+		err = conn.WriteMessage(mt, message)
+		if err != nil {
+			log.Println("write:", err)
+			break
+		}
+	}
 }
 
 func Handler() http.Handler {
