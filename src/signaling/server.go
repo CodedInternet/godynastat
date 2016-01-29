@@ -93,17 +93,14 @@ func DeviceHandler(w http.ResponseWriter, r *http.Request) {
 	go PubSubHandler(conn, pubsubClient)
 
 	for {
-		mt, message, err := conn.ReadMessage()
+		_, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Println("read:", err)
 			break
 		}
 		log.Printf("recv: %s", message)
-		err = conn.WriteMessage(mt, message)
-		if err != nil {
-			log.Println("write:", err)
-			break
-		}
+
+		redisClient.Publish(name, string(message))
 	}
 }
 
