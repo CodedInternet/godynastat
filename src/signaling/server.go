@@ -45,24 +45,32 @@ func EchoHandler(w http.ResponseWriter, r *http.Request) {
 
 func PubSubHandler(conn *websocket.Conn, pubsubClient *redis.PubSub) {
 	for {
-		i, _ := pubsubClient.Receive()
+		msgi, err := pubsubClient.ReceiveMessage()
 
-		if msg, _ := i.(*redis.Message); msg != nil {
-			var json_blob interface{}
-			bytes_blob := []byte(msg.Payload)
+		if err != nil {
+			return
+		}
 
-			if err := json.Unmarshal(bytes_blob, &json_blob); err != nil {
+		switch msg := interface{} (msgi).(type) {
+			case *redis.Message:
+				var json_blob interface{}
+				bytes_blob := []byte(msg.Payload)
+
+				if err := json.Unmarshal(bytes_blob, &json_blob); err != nil {
 				logger.Printf("[%s][error] failed to parse JSON %v, because %v", conn.RemoteAddr(), msg.Payload, err)
 				continue
-			}
+				}
 
-			if err := conn.WriteJSON(json_blob); err != nil {
+				if err := conn.WriteJSON(json_blob); err != nil {
 				logger.Printf("[%s][error] failed to send JSON, because %v", conn.RemoteAddr(), err)
 				conn.Close()
 				break
-			}
+				}
 
-			logger.Printf("[%s][send] OK", conn.RemoteAddr())
+				logger.Printf("[%s][send] OK", conn.RemoteAddr())
+			default:
+				logger.Printf("[%s][error] Unkown message: %s", conn.RemoteAddr(), msg)
+				return
 		}
 	}
 }
@@ -95,8 +103,8 @@ func DeviceHandler(w http.ResponseWriter, r *http.Request) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("read:", err)
-			break
+			log.Println("error:", err)
+			return
 		}
 		log.Printf("recv: %s", message)
 
