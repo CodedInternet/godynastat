@@ -58,20 +58,24 @@ function getAnswer(offer) {
 }
 
 function gotSignal(signal) {
-    if (signal.type == "answer")
-        pc.setRemoteDescription(new RTCSessionDescription(signal), function(event) {
+    if (signal.type == "answer") {
+        pc.setRemoteDescription(new RTCSessionDescription(signal), function (event) {
             console.log("Answer set");
         });
-    else
+    } else if (signal.type = "ice") { // TODO[ghost]: Lookup exectly what the correct syntax for this is.
         pc.addIceCandidate(new RTCIceCandidate(signal));
+    }
 }
 
 function openRtc() {
     websocket = new WebSocket(wsuri);
     websocket.onopen = function(evt) {getOffer()};
     websocket.onmessage = function(evt) {
-        console.log(evt.data);
-        gotSignal(JSON.parse(evt.data));
+        jmessage = JSON.parse(evt.data)
+        console.log(jmessage);
+        if (jmessage.type = "answer") {
+            gotSignal(jmessage);
+        }
     };
 }
 
