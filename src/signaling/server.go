@@ -11,8 +11,8 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:		1024,
-	WriteBufferSize:	1024,
+	ReadBufferSize:        1024,
+	WriteBufferSize:    1024,
 	CheckOrigin:        func(r *http.Request) bool { return true },
 }
 
@@ -52,25 +52,25 @@ func PubSubHandler(conn *websocket.Conn, pubsubClient *redis.PubSub) {
 		}
 
 		switch msg := interface{} (msgi).(type) {
-			case *redis.Message:
-				var json_blob interface{}
-				bytes_blob := []byte(msg.Payload)
+		case *redis.Message:
+			var json_blob interface{}
+			bytes_blob := []byte(msg.Payload)
 
-				if err := json.Unmarshal(bytes_blob, &json_blob); err != nil {
+			if err := json.Unmarshal(bytes_blob, &json_blob); err != nil {
 				logger.Printf("[%s][error] failed to parse JSON %v, because %v", conn.RemoteAddr(), msg.Payload, err)
 				continue
-				}
+			}
 
-				if err := conn.WriteJSON(json_blob); err != nil {
+			if err := conn.WriteJSON(json_blob); err != nil {
 				logger.Printf("[%s][error] failed to send JSON, because %v", conn.RemoteAddr(), err)
 				conn.Close()
-				break
-				}
-
-				logger.Printf("[%s][send] OK", conn.RemoteAddr())
-			default:
-				logger.Printf("[%s][error] Unkown message: %s", conn.RemoteAddr(), msg)
 				return
+			}
+
+			logger.Printf("[%s][send] OK", conn.RemoteAddr())
+		default:
+			logger.Printf("[%s][error] Unkown message: %s", conn.RemoteAddr(), msg)
+			return
 		}
 	}
 }
@@ -94,7 +94,7 @@ func DeviceHandler(w http.ResponseWriter, r *http.Request) {
 	defer pubsubClient.Close()
 
 	if err := pubsubClient.Subscribe(name); err != nil {
-		logger.Printf("[%s][%s][error] Could not subscribe to topic %s, because %s", conn.RemoteAddr(), name,  name, err)
+		logger.Printf("[%s][%s][error] Could not subscribe to topic %s, because %s", conn.RemoteAddr(), name, name, err)
 		return
 	}
 
@@ -113,7 +113,7 @@ func DeviceHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func Handler() http.Handler {
-	logger = log.New(os.Stdout, "[signaling] ", log.Ldate|log.Ltime|log.Lshortfile)
+	logger = log.New(os.Stdout, "[signaling] ", log.Ldate | log.Ltime | log.Lshortfile)
 
 	redisClient = redis.NewClient(&redis.Options{
 		Addr: "192.168.99.100:6379",
