@@ -42,10 +42,10 @@ dc.onclose = function () {
     console.log("The Data Channel is Closed");
 };
 
-function getOffer() {
+function getOffer(callback) {
     pc.createOffer(function(desc) {
         pc.setLocalDescription(desc);
-        doSend(JSON.stringify(desc));
+        callback(JSON.stringify(pc.localDescription));
     })
 }
 
@@ -69,7 +69,9 @@ function gotSignal(signal) {
 
 function openRtc() {
     websocket = new WebSocket(wsuri);
-    websocket.onopen = function(evt) {getOffer()};
+    websocket.onopen = function (evt) {
+        getOffer(doSend)
+    };
     websocket.onmessage = function(evt) {
         jmessage = JSON.parse(evt.data)
         console.log(jmessage);
