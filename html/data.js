@@ -8,7 +8,10 @@ var dcOptions = {
     reliable: false
 }
 
+var sensor_map = [];
+
 pc.ondatachannel = function(event) {
+    console.log(event);
     receiveChannel = event.channel;
     receiveChannel.onmessage = function(event){
         console.log(event.data);
@@ -31,12 +34,20 @@ pc.icegatheringstatechange = function(event) {
 var dc = pc.createDataChannel('data', dcOptions);
 
 dc.onmessage = function(event) {
-    console.log("Incomming message: " + event.data);
+    var json = JSON.parse(event.data);
+    for(var s_name in json["sensors"]) {
+        var sensor = json["sensors"][s_name];
+        for (var row in sensor) {
+            for (var col in sensor[row]) {
+                var id = s_name + "_" + row + "_" + col;
+                if(!sensor_map.hasOwnProperty(id)) {
+                    sensor_map[id] = $("#" + id);
+                }
+                sensor_map[id].text(sensor[row][col]);
+            }
+        }
+    }
 }
-
-dc.onopen = function () {
-    dc.send(JSON.stringify({message: "Hello World!"}));
-};
 
 dc.onclose = function () {
     console.log("The Data Channel is Closed");

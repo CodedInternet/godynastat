@@ -2,9 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>WebRTC</title>
 </head>
 <body>
+<table>
+    {{ range $i, $c := . }}
+    <tr>
+        {{ range $j, $r := $c }}
+            <td id="left_mtp_{{$i}}_{{$j}}"></td>
+        {{ end }}
+    </tr>
+    {{ end }}
+</table>
+<script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
 <script src="data.js"></script>
 </body>
 </html>
