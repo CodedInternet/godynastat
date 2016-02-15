@@ -43,10 +43,12 @@ dc.onmessage = function(event) {
                 if(!sensor_map.hasOwnProperty(id)) {
                     sensor_map[id] = $("#" + id);
                 }
-                sensor_map[id].text(sensor[row][col]);
+                var hue = 255 - sensor[row][col];;
+                sensor_map[id].css("background", "hsl("+ hue +", 80%, 50%)");
             }
         }
     }
+    frames++;
 }
 
 dc.onclose = function () {
@@ -95,3 +97,10 @@ function openRtc() {
 function doSend(message) {
     websocket.send(message);
 }
+
+setInterval(function() {
+
+    $('#fps').html(frames);
+    frames = 0;
+
+}, 1000);
