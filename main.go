@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"signaling"
+	"./signaling"
 	"html/template"
 )
 
