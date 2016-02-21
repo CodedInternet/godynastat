@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"./signaling"
 	"html/template"
+	"github.com/gorilla/mux"
 )
 
 var Table [10][16]int
@@ -15,18 +16,18 @@ func webrtcHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, Table)
 }
 
-func staticHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "html/" + r.URL.Path)
-}
-
 func main() {
 	port := "0.0.0.0:8000"
-	wsHandler := signaling.Handler()
-	http.Handle("/ws/", wsHandler)
-	http.HandleFunc("/app", webrtcHandler)
-	http.HandleFunc("/", staticHandler)
+
+	r := mux.NewRouter()
+	r.StrictSlash(true)
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
+
+	r.PathPrefix("/ws/").Handler(signaling.Handler())
+	r.HandleFunc("/app/", webrtcHandler)
+
 	fmt.Println("Listening on port", port)
-	if err := http.ListenAndServe(port, nil); err != nil {
+	if err := http.ListenAndServe(port, r); err != nil {
 		log.Fatal(err)
 	}
 }
