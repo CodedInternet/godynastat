@@ -27,6 +27,16 @@
     </tr>
     {{ end }}
 </table>
+<hr>
+<table>
+    {{ range $i, $c := . }}
+    <tr>
+        {{ range $j, $r := $c }}
+        <td id="right_mtp_{{$i}}_{{$j}}"></td>
+        {{ end }}
+    </tr>
+    {{ end }}
+</table>
 
 <div>FPS: <span id="fps">0</span> <button id="connect">Connect</button></div>
 <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
