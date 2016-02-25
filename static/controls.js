@@ -44,7 +44,7 @@
       };
 
       Dynastat.prototype.updateSensors = function(update) {
-        var $element, col, element, hue, id, name, results, row, sensor, state, value;
+        var $element, col, cols, hue, id, name, results, row, sensor, state, value;
         results = [];
         for (name in update) {
           sensor = update[name];
@@ -53,14 +53,15 @@
             var results1;
             results1 = [];
             for (row in sensor) {
-              state[row] = [row.length];
+              cols = sensor[row];
+              state[row] = [cols.length];
               results1.push((function() {
                 var results2;
                 results2 = [];
-                for (col in row) {
-                  value = row[col];
-                  element = state[row][col];
-                  if (element.data == null) {
+                for (col in cols) {
+                  value = cols[col];
+                  $element = state[row][col];
+                  if (($element == null) || ($element.data == null)) {
                     id = name + "_" + row + "_" + col;
                     $element = $("#" + id);
                     state[row][col] = $element;

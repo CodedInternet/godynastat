@@ -31,11 +31,11 @@
     updateSensors: (update) ->
       for name, sensor of update
         @state["sensors"][name] = state = [sensor.length]
-        for row of sensor
-          state[row] = [row.length]
-          for col, value of row
-            element = state[row][col]
-            if !element.data?
+        for row, cols of sensor
+          state[row] = [cols.length]
+          for col, value of cols
+            $element = state[row][col]
+            if !$element? or !$element.data?
               id = "#{name}_#{row}_#{col}"
               $element = $("##{id}")
               state[row][col] = $element
