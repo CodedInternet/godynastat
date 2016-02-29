@@ -1,4 +1,4 @@
-#(($) ->
+(($) ->
   stun_servers = []
   sensors_ctx = document.getElementById("sensors").getContext("2d")
 
@@ -22,16 +22,23 @@
 
   class SensorSpot
     size = 10
+    fade = 20
 
     constructor: (@x, @y) ->
-      @value = 0
-      @hue = 255
+      @value = 255
+      @hue = 255.0
 
-    setValue: (@value) ->
-      @hue = 255 - @value
+    setValue: (value) ->
+      @value = 255 - value
 
     draw: (ctx) ->
-      gradient = ctx.createRadialGradient(@x, @y, 0, @x, @y, size)
+      diff = @value - @hue
+      if Math.abs(diff) < 0.5 # Helps ensure we have proper values
+        @hue = @value
+      else
+        @hue += diff/fade
+
+      gradient = ctx.createRadialGradient(@x, @y, 0.1, @x, @y, size)
       gradient.addColorStop(0, "hsla(#{@hue}, 80%, 50%, 1)")
       gradient.addColorStop(1, "hsla(#{@hue}, 80%, 50%, 0)")
 
@@ -48,6 +55,7 @@
       @canvas = document.getElementById("sensors")
       @ctx = @canvas.getContext("2d")
       @ctx.globalCompositeOperation = "lighter"
+      @ctx.globalAlpha = 0.75
 
       @state = {
         "sensors": {
@@ -67,7 +75,7 @@
             sensor[row][col] = cell
         @state["sensors"][name] = sensor
 
-      setInterval(@draw.bind(this), 30)
+      setInterval(@draw.bind(this), 1000/30)
 
     updateState: (update) ->
       @updateSensors(update["sensors"])
@@ -82,13 +90,11 @@
       @draw()
 
     draw: ->
-      if(!@valid)
-        @ctx.clearRect(0, 0, @canvas.width, @canvas.height)
-        for name, sensor of @state["sensors"]
-          for row, cols of sensor
-            for col, cell of cols
-              cell.draw @ctx
-        @valid = true
+      @ctx.clearRect(0, 0, @canvas.width, @canvas.height)
+      for name, sensor of @state["sensors"]
+        for row, cols of sensor
+          for col, cell of cols
+            cell.draw @ctx
 
   class Conductor
     constructor: (@signal_socket) ->
@@ -144,4 +150,4 @@
     $('#connect').on 'click', (e) =>
       conductor.open()
 
-#) jQuery
+) jQuery
