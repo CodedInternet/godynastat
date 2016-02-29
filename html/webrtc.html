@@ -18,11 +18,21 @@
     </style>
 </head>
 <body>
+<div>FPS: <span id="fps">0</span>
+    <button id="connect">Connect</button>
+</div>
+
+<canvas id="sensors" width="600" height="480"
+        style="background: url('/static/img/feet.svg/'); background-size: contain; background-position: center; background-repeat: no-repeat;">
+    Your browser does not support canvas
+</canvas>
+
+<hr/>
 <table>
     {{ range $i, $c := . }}
     <tr>
         {{ range $j, $r := $c }}
-            <td id="left_mtp_{{$i}}_{{$j}}"></td>
+        <td id="left_mtp_{{$i}}_{{$j}}"></td>
         {{ end }}
     </tr>
     {{ end }}
@@ -37,8 +47,6 @@
     </tr>
     {{ end }}
 </table>
-
-<div>FPS: <span id="fps">0</span> <button id="connect">Connect</button></div>
 <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
 <script src="//webrtc.github.io/adapter/adapter-latest.js"></script>
 <script src="/static/controls.js"></script>

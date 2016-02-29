@@ -1,5 +1,6 @@
-(($) ->
+#(($) ->
   stun_servers = []
+  sensors_ctx = document.getElementById("sensors").getContext("2d")
 
   class SignalingSocket
     constructor: (wsuri) ->
@@ -18,31 +19,72 @@
     send: (msg) ->
       @ws.send(msg)
 
+
+  class SensorSpot
+    size = 15
+
+    constructor: (@x, @y) ->
+      @value = 0
+      @hue = 255
+
+    setValue: (@value) ->
+      @hue = 255 - @value
+
+    draw: (ctx) ->
+      gradient = ctx.createRadialGradient(@x, @y, 0, @x, @y, size)
+      gradient.addColorStop(0, "hsla(#{@hue}, 80%, 50%, 1)")
+      gradient.addColorStop(1, "hsla(#{@hue}, 80%, 50%, 0)")
+
+      ctx.beginPath()
+      ctx.arc(@x, @y, size, 0, 2 * Math.PI)
+      ctx.fillStyle = gradient
+      ctx.fill()
+      ctx.closePath()
+
   class Dynastat
+    @valid = false
+
     constructor: ->
+      @ctx = document.getElementById("sensors").getContext("2d")
       @state = {
-        "sensors": {},
+        "sensors": {
+          "left_mtp": [],
+          "right_mtp": [],
+        },
         "motors": {}
       }
+
+      for name, sensor of @state["sensors"]
+        for row in [0..9]
+          if !sensor[row]?
+            sensor[row] = []
+          for col in [0..15]
+            size = 15
+            cell = new SensorSpot( (size * col), (size * row))
+            sensor[row][col] = cell
+        @state["sensors"][name] = sensor
+
+      setInterval(@draw.bind(this), 30)
 
     updateState: (update) ->
       @updateSensors(update["sensors"])
 
     updateSensors: (update) ->
       for name, sensor of update
-        @state["sensors"][name] = state = [sensor.length]
         for row, cols of sensor
-          state[row] = [cols.length]
           for col, value of cols
-            $element = state[row][col]
-            if !$element? or !$element.data?
-              id = "#{name}_#{row}_#{col}"
-              $element = $("##{id}")
-              state[row][col] = $element
+            cell = @state["sensors"][name][row][col]
+            cell.setValue value
+      @valid = false
+      @draw()
 
-            hue = 255 - value
-            $element.css("background", "hsl(#{hue}, 80%, 50%)")
-            $element.data("value", value)
+    draw: ->
+      if(!@valid)
+        for name, sensor of @state["sensors"]
+          for row, cols of sensor
+            for col, cell of cols
+              cell.draw @ctx
+        @valid = true
 
   class Conductor
     constructor: (@signal_socket) ->
@@ -57,13 +99,14 @@
         @ondcmessage event
 #      @txDc = @pc.createDataChannel('command', {ordered: true, reliable: true})
 
-      @pc.createOffer (desc) =>
-        @pc.setLocalDescription(desc)
-        @signal_socket.send(JSON.stringify(desc))
-
       @signal_socket.setConductor(this)
 
       @device = new Dynastat
+
+    open: ->
+      @pc.createOffer (desc) =>
+        @pc.setLocalDescription(desc)
+        @signal_socket.send(JSON.stringify(desc))
 
     close: ->
       @pc.close()
@@ -92,13 +135,9 @@
   $ -> # On ready
     load_stun()
     signal_socket = new SignalingSocket "ws://" + document.location.host + "/ws/device/test/"
-    conductor = undefined
+    conductor = new Conductor signal_socket
 
     $('#connect').on 'click', (e) =>
-      if conductor?
-        conductor.close()
-        conductor = undefined
-      else
-        conductor = new Conductor signal_socket
+      conductor.open()
 
-) jQuery
+#) jQuery
