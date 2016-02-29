@@ -59,7 +59,7 @@
           this.hue += diff / fade;
         }
         size = this.constructor.size;
-        gradient = ctx.createRadialGradient(this.x, this.y, 0.1, this.x, this.y, size);
+        gradient = ctx.createRadialGradient(this.x, this.y, 0.1, this.x, this.y, size - size / 3);
         gradient.addColorStop(0, "hsla(" + this.hue + ", 80%, 50%, 1)");
         gradient.addColorStop(1, "hsla(" + this.hue + ", 80%, 50%, 0)");
         ctx.beginPath();

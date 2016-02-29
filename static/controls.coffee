@@ -40,7 +40,7 @@
         @hue += diff/fade
 
       size = @constructor.size
-      gradient = ctx.createRadialGradient(@x, @y, 0.1, @x, @y, size)
+      gradient = ctx.createRadialGradient(@x, @y, 0.1, @x, @y, size-size/3)
       gradient.addColorStop(0, "hsla(#{@hue}, 80%, 50%, 1)")
       gradient.addColorStop(1, "hsla(#{@hue}, 80%, 50%, 0)")
 
