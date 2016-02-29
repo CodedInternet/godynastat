@@ -21,7 +21,7 @@
 
 
   class SensorSpot
-    size = 15
+    size = 10
 
     constructor: (@x, @y) ->
       @value = 0
@@ -45,7 +45,10 @@
     @valid = false
 
     constructor: ->
-      @ctx = document.getElementById("sensors").getContext("2d")
+      @canvas = document.getElementById("sensors")
+      @ctx = @canvas.getContext("2d")
+      @ctx.globalCompositeOperation = "lighter"
+
       @state = {
         "sensors": {
           "left_mtp": [],
@@ -80,6 +83,7 @@
 
     draw: ->
       if(!@valid)
+        @ctx.clearRect(0, 0, @canvas.width, @canvas.height)
         for name, sensor of @state["sensors"]
           for row, cols of sensor
             for col, cell of cols

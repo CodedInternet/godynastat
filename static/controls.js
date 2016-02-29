@@ -38,7 +38,7 @@
   SensorSpot = (function() {
     var size;
 
-    size = 15;
+    size = 10;
 
     function SensorSpot(x, y) {
       this.x = x;
@@ -73,7 +73,9 @@
 
     function Dynastat() {
       var cell, col, j, k, name, ref, row, sensor, size;
-      this.ctx = document.getElementById("sensors").getContext("2d");
+      this.canvas = document.getElementById("sensors");
+      this.ctx = this.canvas.getContext("2d");
+      this.ctx.globalCompositeOperation = "lighter";
       this.state = {
         "sensors": {
           "left_mtp": [],
@@ -123,6 +125,7 @@
     Dynastat.prototype.draw = function() {
       var cell, col, cols, name, ref, row, sensor;
       if (!this.valid) {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         ref = this.state["sensors"];
         for (name in ref) {
           sensor = ref[name];
