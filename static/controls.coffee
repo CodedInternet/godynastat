@@ -1,6 +1,7 @@
 (($) ->
   stun_servers = []
-  sensors_ctx = document.getElementById("sensors").getContext("2d")
+  fps = 0
+
 
   class SignalingSocket
     constructor: (wsuri) ->
@@ -21,7 +22,7 @@
 
 
   class SensorSpot
-    size = 10
+    @size = 10
     fade = 20
 
     constructor: (@x, @y) ->
@@ -38,6 +39,7 @@
       else
         @hue += diff/fade
 
+      size = @constructor.size
       gradient = ctx.createRadialGradient(@x, @y, 0.1, @x, @y, size)
       gradient.addColorStop(0, "hsla(#{@hue}, 80%, 50%, 1)")
       gradient.addColorStop(1, "hsla(#{@hue}, 80%, 50%, 0)")
@@ -57,25 +59,68 @@
       @ctx.globalCompositeOperation = "lighter"
       @ctx.globalAlpha = 0.75
 
-      @state = {
+      config = {
         "sensors": {
-          "left_mtp": [],
-          "right_mtp": [],
+          "left_mtp": {
+            "x": 50,
+            "y": 110,
+            "rows": 10,
+            "cols": 16,
+          },
+          "left_hallux": {
+            "x": 215,
+            "y": 100,
+            "rows": 12,
+            "cols": 6,
+          },
+          "left_heel": {
+            "x": 160,
+            "y": 370,
+            "rows": 10,
+            "cols": 10,
+          },
+          "right_mtp": {
+            "x": 400,
+            "y": 110,
+            "rows": 10,
+            "cols": 16,
+          },
+          "right_hallux": {
+            "x": 335,
+            "y": 100,
+            "rows": 12,
+            "cols": 6,
+          },
+          "right_heel": {
+            "x": 355,
+            "y": 370,
+            "rows": 10,
+            "cols": 10,
+          },
         },
+        "motors": {},
+      }
+
+      @state = {
+        "sensors": {},
         "motors": {}
       }
 
-      for name, sensor of @state["sensors"]
-        for row in [0..9]
+      for name, conf of config["sensors"]
+        sensor = @state["sensors"][name]
+        sensor = []
+        for row in [0..(conf["rows"]-1)]
           if !sensor[row]?
             sensor[row] = []
-          for col in [0..15]
-            size = 15
-            cell = new SensorSpot( (size * col), (size * row))
+          for col in [0..(conf["cols"]-1)]
+            size = new SensorSpot().constructor.size
+            x = size * col + conf.x
+            y = size * row + conf.y
+            cell = new SensorSpot x, y
             sensor[row][col] = cell
         @state["sensors"][name] = sensor
 
-      setInterval(@draw.bind(this), 1000/30)
+      setInterval(@draw.bind(this), 1000/20)
 
     updateState: (update) ->
       @updateSensors(update["sensors"])
