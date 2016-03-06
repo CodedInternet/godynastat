@@ -1,7 +1,7 @@
 (($) ->
   stun_servers = []
   fps = 0
-
+  count = 0
 
   class SignalingSocket
     constructor: (wsuri) ->
@@ -23,7 +23,7 @@
 
   class SensorSpot
     @size = 10
-    fade = 20
+    fade = 5
 
     constructor: (@x, @y) ->
       @value = 255
@@ -120,7 +120,7 @@
             sensor[row][col] = cell
         @state["sensors"][name] = sensor
 
-      setInterval(@draw.bind(this), 1000/20)
+      requestAnimationFrame(@draw.bind(this))
 
     updateState: (update) ->
       @updateSensors(update["sensors"])
@@ -173,6 +173,7 @@
         console.log(event)
 
     ondcmessage: (event) ->
+      fps++
       message = JSON.parse(event.data)
       @device.updateState message
 
@@ -194,5 +195,11 @@
 
     $('#connect').on 'click', (e) =>
       conductor.open()
+
+    update_fps = ->
+      $('#fps').text fps
+      fps = 0
+
+    setInterval update_fps, 1000
 
 ) jQuery
