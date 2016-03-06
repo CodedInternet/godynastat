@@ -152,7 +152,7 @@
       @rxDc = @pc.createDataChannel('data', {ordered: true, reliable: false})
       @rxDc.onmessage = (event) =>
         @ondcmessage event
-#      @txDc = @pc.createDataChannel('command', {ordered: true, reliable: true})
+      @txDc = @pc.createDataChannel('command', {ordered: true, reliable: true})
 
       @signal_socket.setConductor(this)
 

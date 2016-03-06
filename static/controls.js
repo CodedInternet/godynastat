@@ -223,6 +223,10 @@
             return _this.ondcmessage(event);
           };
         })(this);
+        this.txDc = this.pc.createDataChannel('command', {
+          ordered: true,
+          reliable: true
+        });
         this.signal_socket.setConductor(this);
         this.device = new Dynastat;
       }
