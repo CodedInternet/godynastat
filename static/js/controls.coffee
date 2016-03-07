@@ -6,6 +6,14 @@
   Number::map = (in_min, in_max, out_min, out_max) ->
     return (this - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
 
+  stepPrecision = ($input) ->
+    step = $input.attr 'step'
+    parts = (step + "").split(".")
+    precision = 0
+    if parts[1]?
+      precision += parts[1].length
+    return precision
+
   class SignalingSocket
     constructor: (wsuri) ->
       @ws = new WebSocket(wsuri)
@@ -149,14 +157,9 @@
 
         min = Number $input.attr 'min'
         max = Number $input.attr 'max'
-        step = $input.attr 'step'
-        parts = (step+"").split(".")
-        precision = 0
-        if parts[1]?
-          precision += parts[1].length
 
 #        $input.val target.map 0, 255, min, max
-        $output.val current.map(0, 255, min, max).toFixed(precision)
+        $output.val current.map(0, 255, min, max).toFixed(stepPrecision $input)
 
     draw: ->
       @ctx.clearRect(0, 0, @canvas.width, @canvas.height)
@@ -233,6 +236,7 @@
 
     $('.m_input').on 'change', ->
       # Actually send this data to the device and get a response
+# @todo: Make sure the input displays correctly
       name = $(this).attr('name')
       min = $(this).attr('min')
       max = $(this).attr('max')
