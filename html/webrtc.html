@@ -26,41 +26,41 @@
 
             <div class="input-field col s12">
                 <div class="col s6">
-                    <label for="m_left_drop">Plantarflexion (mm)</label>
-                    <input type="number" class="m_input" id="m_left_drop" name="left_drop" min="-5.0" max="0" value="0.0" step="0.1" />
+                    <label for="m_left_first_ray">First Ray Plantarflexion (mm)</label>
+                    <input type="number" class="m_input" id="m_left_first_ray" name="left_first_ray" min="-5.0" max="0" value="0.0" step="0.1" />
                 </div>
                 <div class="col s6">
-                    <input type="number" id="m_left_drop_current" value="0.0" disabled />
-                </div>
-            </div>
-
-            <div class="input-field col s12">
-                <div class="col s6">
-                    <label for="m_left_front_tilt">Forefoot Lateral Angle (&deg;)</label>
-                    <input type="number" class="m_input" id="m_left_front_tilt" name="left_front_tilt" min="-5.0" max="5.0" value="0.0" step="0.1" />
-                </div>
-                <div class="col s6">
-                    <input type="number" id="m_left_front_tilt_current" value="0.0" disabled />
+                    <input type="number" id="m_left_first_ray_current" value="0.0" disabled />
                 </div>
             </div>
 
             <div class="input-field col s12">
                 <div class="col s6">
-                    <label for="m_left_rear_tilt">Rearfoot Lateral Angle (&deg;)</label>
-                    <input type="number" class="m_input" id="m_left_rear_tilt" name="left_rear_tilt" min="-5.0" max="5.0" value="0.0" step="0.1" />
+                    <label for="m_left_forefoot_frontal">Forefoot Frontal Plain (&deg;)</label>
+                    <input type="number" class="m_input" id="m_left_forefoot_frontal" name="left_forefoot_frontal" min="-5.0" max="5.0" value="0.0" step="0.1" />
                 </div>
                 <div class="col s6">
-                    <input type="number" id="m_left_rear_tilt_current" value="0.0" disabled />
+                    <input type="number" id="m_left_forefoot_frontal_current" value="0.0" disabled />
                 </div>
             </div>
 
             <div class="input-field col s12">
                 <div class="col s6">
-                    <label for="m_left_lift">Rearfoot Inclination (mm)</label>
-                    <input type="number" class="m_input" id="m_left_lift" name="left_lift" min="0.0" max="5.0" value="0.0" step="0.1" />
+                    <label for="m_left_rearfoot_frontal">Rearfoot Frontal Plain (&deg;)</label>
+                    <input type="number" class="m_input" id="m_left_rearfoot_frontal" name="left_rearfoot_frontal" min="-5.0" max="5.0" value="0.0" step="0.1" />
                 </div>
                 <div class="col s6">
-                    <input type="number" id="m_left_lift_current" value="0.0" disabled />
+                    <input type="number" id="m_left_rearfoot_frontal_current" value="0.0" disabled />
+                </div>
+            </div>
+
+            <div class="input-field col s12">
+                <div class="col s6">
+                    <label for="m_left_rearfoot_inclination">Rearfoot Inclination (mm)</label>
+                    <input type="number" class="m_input" id="m_left_rearfoot_inclination" name="left_rearfoot_inclination" min="0.0" max="5.0" value="0.0" step="0.1" />
+                </div>
+                <div class="col s6">
+                    <input type="number" id="m_left_rearfoot_inclination_current" value="0.0" disabled />
                 </div>
             </div>
         </div>
@@ -69,6 +69,58 @@
             <canvas id="sensors" width="600" height="480">
                 Your browser does not support canvas
             </canvas>
+        </div>
+
+        <div class="col m3">
+            <div class="input-field col s12">
+                <div class="col s6">
+                    <label for="m_right_size">Foot Size</label>
+                    <input type="number" class="m_input" id="m_right_size" name="right_size" min="3" max="16" value="7" />
+                </div>
+                <div class="col s6">
+                    <input type="number" id="m_right_size_current" value="7" disabled />
+                </div>
+            </div>
+
+            <div class="input-field col s12">
+                <div class="col s6">
+                    <label for="m_right_first_ray">First Ray Plantarflexion (mm)</label>
+                    <input type="number" class="m_input" id="m_right_first_ray" name="right_first_ray" min="-5.0" max="0" value="0.0" step="0.1" />
+                </div>
+                <div class="col s6">
+                    <input type="number" id="m_right_first_ray_current" value="0.0" disabled />
+                </div>
+            </div>
+
+            <div class="input-field col s12">
+                <div class="col s6">
+                    <label for="m_right_forefoot_frontal">Forefoot Frontal Plain (&deg;)</label>
+                    <input type="number" class="m_input" id="m_right_forefoot_frontal" name="right_forefoot_frontal" min="-5.0" max="5.0" value="0.0" step="0.1" />
+                </div>
+                <div class="col s6">
+                    <input type="number" id="m_right_forefoot_frontal_current" value="0.0" disabled />
+                </div>
+            </div>
+
+            <div class="input-field col s12">
+                <div class="col s6">
+                    <label for="m_right_rearfoot_frontal">Rearfoot Frontal Plain (&deg;)</label>
+                    <input type="number" class="m_input" id="m_right_rearfoot_frontal" name="right_rearfoot_frontal" min="-5.0" max="5.0" value="0.0" step="0.1" />
+                </div>
+                <div class="col s6">
+                    <input type="number" id="m_right_rearfoot_frontal_current" value="0.0" disabled />
+                </div>
+            </div>
+
+            <div class="input-field col s12">
+                <div class="col s6">
+                    <label for="m_right_rearfoot_inclination">Rearfoot Inclination (mm)</label>
+                    <input type="number" class="m_input" id="m_right_rearfoot_inclination" name="right_rearfoot_inclination" min="0.0" max="5.0" value="0.0" step="0.1" />
+                </div>
+                <div class="col s6">
+                    <input type="number" id="m_right_rearfoot_inclination_current" value="0.0" disabled />
+                </div>
+            </div>
         </div>
     </form>
 </div>
