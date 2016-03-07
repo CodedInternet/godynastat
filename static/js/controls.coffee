@@ -3,6 +3,9 @@
   fps = 0
   count = 0
 
+  Number::map = (in_min, in_max, out_min, out_max) ->
+    return (this - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+
   class SignalingSocket
     constructor: (wsuri) ->
       @ws = new WebSocket(wsuri)
@@ -124,6 +127,7 @@
 
     updateState: (update) ->
       @updateSensors(update["sensors"])
+      @updateMotors(update["motors"])
 
     updateSensors: (update) ->
       for name, sensor of update
@@ -133,6 +137,26 @@
             cell.setValue value
       @valid = false
       @draw()
+
+    updateMotors: (update) ->
+      for name, motor of update
+        id = "#m_#{name}"
+        target = Number motor["target"]
+        current = Number motor["current"]
+
+        $input = $(id)
+        $output = $(id+"_current")
+
+        min = Number $input.attr 'min'
+        max = Number $input.attr 'max'
+        step = $input.attr 'step'
+        parts = (step+"").split(".")
+        precision = 0
+        if parts[1]?
+          precision += parts[1].length
+
+#        $input.val target.map 0, 255, min, max
+        $output.val current.map(0, 255, min, max).toFixed(precision)
 
     draw: ->
       @ctx.clearRect(0, 0, @canvas.width, @canvas.height)
@@ -181,7 +205,12 @@
       message = JSON.parse(event.data)
       if (message.type == "answer")
         @pc.setRemoteDescription new RTCSessionDescription(message), (event) =>
-          console.log("Answer Set")
+          $('.m_input').removeAttr 'disabled'
+
+    setmotor: (name, value) ->
+      json = JSON.stringify {"cmd": "set_motor", "name": name, "value", value}
+      console.log json
+      @txDc.send json
 
   load_stun = ->
     $.get
@@ -205,7 +234,9 @@
     $('.m_input').on 'change', ->
       # Actually send this data to the device and get a response
       name = $(this).attr('name')
-      id = "#m_#{name}_current"
-      $(id).val($(this).val())
+      min = $(this).attr('min')
+      max = $(this).attr('max')
+      val = Number $(this).val()
+      conductor.setmotor name, Math.round val.map min, max, 0, 255
 
 ) jQuery

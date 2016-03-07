@@ -5,6 +5,9 @@
     stun_servers = [];
     fps = 0;
     count = 0;
+    Number.prototype.map = function(in_min, in_max, out_min, out_max) {
+      return (this - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    };
     SignalingSocket = (function() {
       function SignalingSocket(wsuri) {
         this.ws = new WebSocket(wsuri);
@@ -150,7 +153,8 @@
       }
 
       Dynastat.prototype.updateState = function(update) {
-        return this.updateSensors(update["sensors"]);
+        this.updateSensors(update["sensors"]);
+        return this.updateMotors(update["motors"]);
       };
 
       Dynastat.prototype.updateSensors = function(update) {
@@ -168,6 +172,29 @@
         }
         this.valid = false;
         return this.draw();
+      };
+
+      Dynastat.prototype.updateMotors = function(update) {
+        var $input, $output, current, id, max, min, motor, name, parts, precision, results, step, target;
+        results = [];
+        for (name in update) {
+          motor = update[name];
+          id = "#m_" + name;
+          target = Number(motor["target"]);
+          current = Number(motor["current"]);
+          $input = $(id);
+          $output = $(id + "_current");
+          min = Number($input.attr('min'));
+          max = Number($input.attr('max'));
+          step = $input.attr('step');
+          parts = (step + "").split(".");
+          precision = 0;
+          if (parts[1] != null) {
+            precision += parts[1].length;
+          }
+          results.push($output.val(current.map(0, 255, min, max).toFixed(precision)));
+        }
+        return results;
       };
 
       Dynastat.prototype.draw = function() {
@@ -266,10 +293,22 @@
         if (message.type === "answer") {
           return this.pc.setRemoteDescription(new RTCSessionDescription(message), (function(_this) {
             return function(event) {
-              return console.log("Answer Set");
+              return $('.m_input').removeAttr('disabled');
             };
           })(this));
         }
+      };
+
+      Conductor.prototype.setmotor = function(name, value) {
+        var json;
+        json = JSON.stringify({
+          "cmd": "set_motor",
+          "name": name,
+          "value": "value",
+          value: value
+        });
+        console.log(json);
+        return this.txDc.send(json);
       };
 
       return Conductor;
@@ -299,10 +338,12 @@
       };
       setInterval(update_fps, 1000);
       return $('.m_input').on('change', function() {
-        var id, name;
+        var max, min, name, val;
         name = $(this).attr('name');
-        id = "#m_" + name + "_current";
-        return $(id).val($(this).val());
+        min = $(this).attr('min');
+        max = $(this).attr('max');
+        val = Number($(this).val());
+        return conductor.setmotor(name, Math.round(val.map(min, max, 0, 255)));
       });
     });
   })(jQuery);
