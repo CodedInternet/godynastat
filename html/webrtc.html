@@ -4,31 +4,78 @@
     <meta charset="UTF-8">
     <title>WebRTC</title>
 
-    <style>
-        table {
-            border-collapse: collapse;
-            -webkit-filter: blur(5px);
-        }
-
-        td {
-            height: 20px;
-            width: 20px;
-            transition: background 0.2s;
-        }
-    </style>
+    <link href="/static/css/screen.css" rel="stylesheet" />
 </head>
 <body>
 <div>FPS: <span id="fps">0</span>
     <button id="connect">Connect</button>
 </div>
 
-<canvas id="sensors" width="600" height="480"
-        style="background: url('/static/img/feet.svg/'); background-size: contain; background-position: center; background-repeat: no-repeat;">
-    Your browser does not support canvas
-</canvas>
+<div class="row">
+    <form>
+        <div class="col m3">
+            <div class="input-field col s12">
+                <div class="col s6">
+                    <label for="m_left_size">Foot Size</label>
+                    <input type="number" class="m_input" id="m_left_size" name="left_size" min="3" max="16" value="7" />
+                </div>
+                <div class="col s6">
+                    <input type="number" id="m_left_size_current" value="7" disabled />
+                </div>
+            </div>
+
+            <div class="input-field col s12">
+                <div class="col s6">
+                    <label for="m_left_drop">Plantarflexion (mm)</label>
+                    <input type="number" class="m_input" id="m_left_drop" name="left_drop" min="-5.0" max="0" value="0.0" step="0.1" />
+                </div>
+                <div class="col s6">
+                    <input type="number" id="m_left_drop_current" value="0.0" disabled />
+                </div>
+            </div>
+
+            <div class="input-field col s12">
+                <div class="col s6">
+                    <label for="m_left_front_tilt">Forefoot Lateral Angle (&deg;)</label>
+                    <input type="number" class="m_input" id="m_left_front_tilt" name="left_front_tilt" min="-5.0" max="5.0" value="0.0" step="0.1" />
+                </div>
+                <div class="col s6">
+                    <input type="number" id="m_left_front_tilt_current" value="0.0" disabled />
+                </div>
+            </div>
+
+            <div class="input-field col s12">
+                <div class="col s6">
+                    <label for="m_left_rear_tilt">Rearfoot Lateral Angle (&deg;)</label>
+                    <input type="number" class="m_input" id="m_left_rear_tilt" name="left_rear_tilt" min="-5.0" max="5.0" value="0.0" step="0.1" />
+                </div>
+                <div class="col s6">
+                    <input type="number" id="m_left_rear_tilt_current" value="0.0" disabled />
+                </div>
+            </div>
+
+            <div class="input-field col s12">
+                <div class="col s6">
+                    <label for="m_left_lift">Rearfoot Inclination (mm)</label>
+                    <input type="number" class="m_input" id="m_left_lift" name="left_lift" min="0.0" max="5.0" value="0.0" step="0.1" />
+                </div>
+                <div class="col s6">
+                    <input type="number" id="m_left_lift_current" value="0.0" disabled />
+                </div>
+            </div>
+        </div>
+
+        <div class="col m6 center">
+            <canvas id="sensors" width="600" height="480">
+                Your browser does not support canvas
+            </canvas>
+        </div>
+    </form>
+</div>
 
 <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
 <script src="//webrtc.github.io/adapter/adapter-latest.js"></script>
-<script src="/static/controls.js"></script>
+<script src="/static/js/materialize.js"></script>
+<script src="/static/js/controls.js"></script>
 </body>
 </html>

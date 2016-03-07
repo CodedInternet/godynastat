@@ -202,4 +202,10 @@
 
     setInterval update_fps, 1000
 
+    $('.m_input').on 'change', ->
+      # Actually send this data to the device and get a response
+      name = $(this).attr('name')
+      id = "#m_#{name}_current"
+      $(id).val($(this).val())
+
 ) jQuery

@@ -297,7 +297,13 @@
         $('#fps').text(fps);
         return fps = 0;
       };
-      return setInterval(update_fps, 1000);
+      setInterval(update_fps, 1000);
+      return $('.m_input').on('change', function() {
+        var id, name;
+        name = $(this).attr('name');
+        id = "#m_" + name + "_current";
+        return $(id).val($(this).val());
+      });
     });
   })(jQuery);
 
