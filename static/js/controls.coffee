@@ -186,9 +186,15 @@
       @device = new Dynastat
 
     open: ->
-      @pc.createOffer (desc) =>
-        @pc.setLocalDescription(desc)
-        @signal_socket.send(JSON.stringify(desc))
+      @pc.createOffer \
+        ((desc) =>
+          @pc.setLocalDescription(desc)
+          @signal_socket.send(JSON.stringify(desc)))
+        ,
+        (() =>
+          console.log("Create Offer failed");
+        )
+
 
     close: ->
       @pc.close()

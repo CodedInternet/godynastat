@@ -8,7 +8,7 @@
     Number.prototype.map = function(in_min, in_max, out_min, out_max) {
       return (this - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
     };
-    stepPrecision = function ($input) {
+    stepPrecision = function($input) {
       var parts, precision, step;
       step = $input.attr('step');
       parts = (step + "").split(".");
@@ -264,12 +264,16 @@
       }
 
       Conductor.prototype.open = function() {
-        return this.pc.createOffer((function(_this) {
+        return this.pc.createOffer(((function(_this) {
           return function(desc) {
             _this.pc.setLocalDescription(desc);
             return _this.signal_socket.send(JSON.stringify(desc));
           };
-        })(this));
+        })(this)), ((function(_this) {
+          return function() {
+            return console.log("Create Offer failed");
+          };
+        })(this)));
       };
 
       Conductor.prototype.close = function() {
