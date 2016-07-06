@@ -250,6 +250,7 @@
           ordered: true,
           reliable: false
         });
+        this.rxDc.binaryType = "arraybuffer";
         this.rxDc.onmessage = (function(_this) {
           return function(event) {
             return _this.ondcmessage(event);
@@ -289,10 +290,11 @@
       };
 
       Conductor.prototype.ondcmessage = function(event) {
-        var message;
+        var data, state;
         fps++;
-        message = JSON.parse(event.data);
-        return this.device.updateState(message);
+        data = new Uint8Array(event.data);
+        state = msgpack.unpack(data);
+        return this.device.updateState(state);
       };
 
       Conductor.prototype.onssmessage = function(event) {
@@ -335,6 +337,7 @@
       load_stun();
       signal_socket = new SignalingSocket("ws://" + document.location.host + "/ws/device/test/");
       conductor = new Conductor(signal_socket);
+      $.conductor = conductor;
       $('#connect').on('click', (function(_this) {
         return function(e) {
           return conductor.open();
@@ -351,7 +354,7 @@
         min = $(this).attr('min');
         max = $(this).attr('max');
         val = Number($(this).val());
-        return conductor.setmotor(name, Math.round(val.map(min, max, 0, 255)));
+        return $.conductor.setmotor(name, Math.round(val.map(min, max, 0, 255)));
       });
     });
   })(jQuery);

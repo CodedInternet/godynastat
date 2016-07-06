@@ -177,6 +177,7 @@
       @pc = new RTCPeerConnection(pc_config)
 
       @rxDc = @pc.createDataChannel('data', {ordered: true, reliable: false})
+      @rxDc.binaryType = "arraybuffer"
       @rxDc.onmessage = (event) =>
         @ondcmessage event
       @txDc = @pc.createDataChannel('command', {ordered: true, reliable: true})
@@ -207,8 +208,9 @@
 
     ondcmessage: (event) ->
       fps++
-      message = JSON.parse(event.data)
-      @device.updateState message
+      data = new Uint8Array event.data
+      state = msgpack.unpack data
+      @device.updateState state
 
     onssmessage: (event) ->
       message = JSON.parse(event.data)
@@ -230,6 +232,7 @@
     load_stun()
     signal_socket = new SignalingSocket "ws://" + document.location.host + "/ws/device/test/"
     conductor = new Conductor signal_socket
+    $.conductor = conductor
 
     $('#connect').on 'click', (e) =>
       conductor.open()
@@ -247,6 +250,6 @@
       min = $(this).attr('min')
       max = $(this).attr('max')
       val = Number $(this).val()
-      conductor.setmotor name, Math.round val.map min, max, 0, 255
+      $.conductor.setmotor name, Math.round val.map min, max, 0, 255
 
 ) jQuery
