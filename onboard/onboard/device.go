@@ -1,6 +1,7 @@
 package onboard
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/goburrow/serial"
 	"log"
@@ -17,7 +18,7 @@ const (
 	SB_REG_VALUES = 0x0100
 	SB_ROWS       = 16
 	SB_COLS       = 24
-	SB_BITS       = 16
+	SB_BITS       = 8
 
 	// Motor constants
 	m_BITS            = 8
@@ -35,13 +36,22 @@ type UARTMCU struct {
 	lock sync.Mutex
 }
 
+type UARTMCUInterface interface {
+	Put(i2cAddr int, cmd uint8, value int32)
+	Get(i2cAddr int, cmd uint8) (value int32)
+}
+
 type I2CBus struct {
 	fd   *os.File
 	lock sync.Mutex
 }
 
+type I2CBusInterface interface {
+	Get(i2cAddr int, reg uint16, buf []byte)
+}
+
 type SensorBoard struct {
-	i2cBus      I2CBus
+	i2cBus      I2CBusInterface
 	address     int
 	buf         []byte
 	zeroValue   uint16
@@ -49,8 +59,8 @@ type SensorBoard struct {
 }
 
 type RMCS220xMotor struct {
-	bus        *UARTMCU
-	controlBus *I2CBus
+	bus        UARTMCUInterface
+	controlBus I2CBusInterface
 	address    int
 	control    uint16
 	rawLow     int
@@ -76,7 +86,7 @@ func (mcu *UARTMCU) Open(ttyName string) {
 	port, err := serial.Open(&serial.Config{
 		Address:  ttyName,
 		BaudRate: 115200,
-		Timeout:  0.5 * time.Second,
+		Timeout:  time.Second / 2,
 	})
 
 	if err != nil {
@@ -168,7 +178,7 @@ func (sb *SensorBoard) SetScale(zero, half, full uint16) {
 	var max, m1, m2 float64
 
 	// Calculate the proportions of the scaling
-	max = (2 ^ SB_BITS) - 1
+	max = math.Pow(2, SB_BITS) - 1
 	m1 = float64(half) / (max / 2)
 	m2 = float64(full) / max
 
@@ -177,9 +187,10 @@ func (sb *SensorBoard) SetScale(zero, half, full uint16) {
 	sb.scaleFactor = (m1 + m2) / 2
 }
 
-func (sb *SensorBoard) GetValue(row, col int) uint16 {
+func (sb *SensorBoard) GetValue(row, col int) uint8 {
 	i := row*SB_COLS + col
-	return uint16(sb.buf[i])<<8 + uint16(sb.buf[i+1])
+	val := binary.BigEndian.Uint16([]byte{sb.buf[i], sb.buf[i+1]})
+	return uint8(float64(val) / sb.scaleFactor)
 }
 
 // RMCS220xMotor
@@ -194,7 +205,11 @@ func (m *RMCS220xMotor) scalePos(val int, up bool) int {
 			val = m.rawHigh
 		}
 
-		return translateValue(val, m.rawLow, m.rawHigh, 0, max)
+		val := translateValue(val, m.rawLow, m.rawHigh, 0, max)
+		if val > 255 { // clamp value to 255
+			val = 255
+		}
+		return val
 	}
 }
 
@@ -209,8 +224,8 @@ func (m *RMCS220xMotor) readPosition() int32 {
 func (m *RMCS220xMotor) readControl() bool {
 	buf := make([]byte, 2)
 	m.controlBus.Get(m_CONTROL_ADDRESS, m_CONTROL_REG, buf)
-	val := uint16(buf)
-	return bool(val ^ 0&m.control)
+	val := binary.LittleEndian.Uint16(buf)
+	return val&m.control == 0
 }
 
 func (m *RMCS220xMotor) SetTarget(target int) {
