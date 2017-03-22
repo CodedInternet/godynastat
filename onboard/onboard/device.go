@@ -1,13 +1,14 @@
 package onboard
 
 import (
-	"github.com/goburrow/serial"
-	"sync"
 	"fmt"
+	"github.com/goburrow/serial"
 	"log"
-	"time"
+	"math"
 	"os"
+	"sync"
 	"syscall"
+	"time"
 )
 
 const (
@@ -16,7 +17,17 @@ const (
 	SB_REG_VALUES = 0x0100
 	SB_ROWS       = 16
 	SB_COLS       = 24
-	SB_BITS	      = 16
+	SB_BITS       = 16
+
+	// Motor constants
+	m_BITS            = 8
+	m_REG_MAX_SPEED   = 0
+	m_REG_MANUAL      = 1
+	m_REG_DAMPING     = 2
+	m_REG_POSITION    = 3
+	m_REG_GOTO        = 4
+	m_CONTROL_ADDRESS = 0x20
+	m_CONTROL_REG     = 3
 )
 
 type UARTMCU struct {
@@ -37,6 +48,30 @@ type SensorBoard struct {
 	scaleFactor float64
 }
 
+type RMCS220xMotor struct {
+	bus        *UARTMCU
+	controlBus *I2CBus
+	address    int
+	control    uint16
+	rawLow     int
+	rawHigh    int
+	target     int
+}
+
+// Generic functions
+func translateValue(val, leftMin, leftMax, rightMin, rightMax int) int {
+	// Figure out how 'wide' each range is
+	leftSpan := float64(leftMax - leftMin)
+	rightSpan := float64(rightMax - rightMin)
+
+	// Convert the left range into a 0-1 range (float)
+	valueScaled := float64(val-leftMin) / leftSpan
+
+	// Scale the 0-1 range backup and shift by the appropriate amount
+	return rightMin + int(valueScaled*rightSpan)
+}
+
+// MCU
 func (mcu *UARTMCU) Open(ttyName string) {
 	port, err := serial.Open(&serial.Config{
 		Address:  ttyName,
@@ -52,7 +87,11 @@ func (mcu *UARTMCU) Open(ttyName string) {
 	mcu.port = port
 }
 
-func (mcu *UARTMCU) Put(i2cAddr int, cmd uint8, value uint32) {
+func (mcu *UARTMCU) Close() {
+	mcu.port.Close()
+}
+
+func (mcu *UARTMCU) Put(i2cAddr int, cmd uint8, value int32) {
 	buf := fmt.Sprintf("M%d %d %d", i2cAddr, cmd, value)
 
 	// Keep as little processing outside the critical section as possible
@@ -141,4 +180,61 @@ func (sb *SensorBoard) SetScale(zero, half, full uint16) {
 func (sb *SensorBoard) GetValue(row, col int) uint16 {
 	i := row*SB_COLS + col
 	return uint16(sb.buf[i])<<8 + uint16(sb.buf[i+1])
+}
+
+// RMCS220xMotor
+func (m *RMCS220xMotor) scalePos(val int, up bool) int {
+	max := int(math.Pow(2, float64(m_BITS)))
+	if up {
+		return translateValue(val, 0, max, m.rawLow, m.rawHigh)
+	} else {
+		if val < m.rawLow {
+			val = m.rawLow
+		} else if val > m.rawHigh {
+			val = m.rawHigh
+		}
+
+		return translateValue(val, m.rawLow, m.rawHigh, 0, max)
+	}
+}
+
+func (m *RMCS220xMotor) writePosition(pos int32) {
+	m.bus.Put(m.address, m_REG_GOTO, pos)
+}
+
+func (m *RMCS220xMotor) readPosition() int32 {
+	return m.bus.Get(m.address, m_REG_POSITION)
+}
+
+func (m *RMCS220xMotor) readControl() bool {
+	buf := make([]byte, 2)
+	m.controlBus.Get(m_CONTROL_ADDRESS, m_CONTROL_REG, buf)
+	val := uint16(buf)
+	return bool(val ^ 0&m.control)
+}
+
+func (m *RMCS220xMotor) SetTarget(target int) {
+	m.target = target
+	m.writePosition(int32(m.scalePos(target, true)))
+}
+
+func (m *RMCS220xMotor) GetPosition() int {
+	raw := m.readPosition()
+	return m.scalePos(int(raw), false)
+}
+
+func (m *RMCS220xMotor) Home(cal int) {
+	inc := int32(math.Abs(float64(m.rawHigh-m.rawLow))) / 10
+	// Invert increment so we go in the right direction
+	if cal < 0 {
+		inc = -inc
+	}
+
+	for !m.readControl() {
+		m.writePosition(m.readPosition() + inc)
+	}
+
+	m.bus.Put(m.address, m_REG_POSITION, int32(cal))
+
+	m.writePosition(0)
 }
