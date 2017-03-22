@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/keroserene/go-webrtc"
+	"bufio"
 	"encoding/json"
 	"fmt"
-	"bufio"
+	"github.com/keroserene/go-webrtc"
 	"os"
 )
 
@@ -75,8 +75,6 @@ func processSignal(msg string) {
 			sdp := pc.LocalDescription().Serialize()
 			signalSend(sdp)
 		}
-
-
 
 		// Process the description
 		receiveDescription(sdp, pc)
