@@ -131,15 +131,23 @@ func TestRMCS220xMotor(t *testing.T) {
 		2,
 		0xffff,
 	}
-	motor := RMCS220xMotor{
+
+	motor := NewRMCS220xMotor(
 		mcu,
 		control,
-		0x16,
 		2,
+		0x16,
 		-2550,
 		2550,
-		0,
-	}
+		255,
+		42,
+	)
+
+	Convey("constructor has worked", t, func() {
+		So(mcu.i2cAddr, ShouldEqual, motor.address)
+		So(mcu.cmd, ShouldEqual, m_REG_DAMPING)
+		So(mcu.value, ShouldEqual, 42)
+	})
 
 	Convey("basic operations", t, func() {
 		Convey("write position", func() {

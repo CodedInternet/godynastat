@@ -91,8 +91,34 @@ type MotorInterface interface {
 }
 
 type Dynastat struct {
-	motors  map[string]MotorInterface
-	sensors map[string]SensorInterface
+	motors    map[string]MotorInterface
+	sensors   map[string]SensorInterface
+	sensorBus I2CBusInterface
+	motorBus  UARTMCUInterface
+}
+
+type DynastatConfig struct {
+	Version          int
+	SignalingServers []string
+	I2CBus           struct {
+		Sensor int
+	}
+	UART struct {
+		motor string
+	}
+	Motors map[string]struct {
+		Address        int
+		Cal, Low, High int
+		Speed, Damping int32
+		Control        uint16
+	}
+	Sensors map[string]struct {
+		Address, Mode                   int
+		Registry                        uint
+		Mirror                          bool
+		Rows, Cols                      int
+		ZeroValue, HalfValue, FullValue uint16
+	}
 }
 
 // Generic functions
@@ -109,7 +135,7 @@ func translateValue(val, leftMin, leftMax, rightMin, rightMax int) int {
 }
 
 // MCU
-func (mcu *UARTMCU) Open(ttyName string) {
+func OpenUARTMCU(ttyName string) *UARTMCU {
 	port, err := serial.Open(&serial.Config{
 		Address:  ttyName,
 		BaudRate: 115200,
@@ -118,10 +144,11 @@ func (mcu *UARTMCU) Open(ttyName string) {
 
 	if err != nil {
 		log.Fatal(err)
-		return
+		return nil
 	}
-
+	mcu := new(UARTMCU)
 	mcu.port = port
+	return mcu
 }
 
 func (mcu *UARTMCU) Close() {
@@ -320,4 +347,74 @@ func (m *RMCS220xMotor) Home(cal int) {
 	m.bus.Put(m.address, m_REG_POSITION, int32(cal))
 
 	m.writePosition(0)
+}
+
+func NewRMCS220xMotor(bus UARTMCUInterface, controlBus I2CBusInterface, control uint16,
+	address, rawLow, rawHigh int, speed, damping int32) (motor *RMCS220xMotor) {
+
+	motor = new(RMCS220xMotor)
+	motor.bus = bus
+	motor.controlBus = controlBus
+	motor.control = control
+	motor.address = address
+	motor.rawLow = rawLow
+	motor.rawHigh = rawHigh
+
+	motor.bus.Put(motor.address, m_REG_MAX_SPEED, speed)
+	motor.bus.Put(motor.address, m_REG_DAMPING, damping)
+	return
+}
+
+// Device level functions
+func NewDynastat(config DynastatConfig) (dynastat *Dynastat, err error) {
+	switch config.Version {
+	case 1:
+		dynastat = new(Dynastat)
+		dynastat.sensorBus = OpenI2C(fmt.Sprintf("/dev/i2c-%d", config.I2CBus.Sensor))
+		dynastat.motorBus = OpenUARTMCU(config.UART.motor)
+
+		for name, conf := range config.Motors {
+			dynastat.motors[name] = NewRMCS220xMotor(
+				dynastat.motorBus,
+				dynastat.sensorBus,
+				conf.Control,
+				conf.Address,
+				conf.Low,
+				conf.High,
+				conf.Speed,
+				conf.Damping,
+			)
+		}
+
+		var sensorBoards map[int]*SensorBoard
+		for name, conf := range config.Sensors {
+			board, exists := sensorBoards[conf.Address]
+
+			if !exists {
+				board = &SensorBoard{
+					dynastat.sensorBus,
+					conf.Address,
+					make([]byte, sb_ROWS*sb_COLS),
+				}
+				go board.Update()
+			}
+
+			dynastat.sensors[name], _ = NewSensor(
+				board,
+				conf.Registry,
+				conf.Mirror,
+				conf.Rows,
+				conf.Cols,
+				conf.ZeroValue,
+				conf.HalfValue,
+				conf.FullValue,
+			)
+		}
+
+		break
+
+	default:
+		return nil, errors.New("Unkown config version")
+	}
+	return
 }
