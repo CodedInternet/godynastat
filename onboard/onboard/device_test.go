@@ -61,45 +61,44 @@ func (c *MockControlI2C) Get(i2cAddr int, cmd uint16, buf []byte) {
 func TestSensorBoard(t *testing.T) {
 	sb := &SensorBoard{
 		&MockI2CSensorBoard{
-			data: make([]byte, SB_ROWS*SB_COLS),
+			data: make([]byte, sb_ROWS*sb_COLS),
 		},
 		0,
-		make([]byte, SB_COLS*SB_ROWS),
-		0,
-		0,
+		make([]byte, sb_COLS*sb_ROWS),
 	}
+	s, _ := NewSensor(sb, 1, false, sb_ROWS, s_BANK1_COLS, 0, 127, 255)
 
 	Convey("Setting the scale works as expected", t, func() {
 		Convey("1:1 scaling", func() {
-			sb.SetScale(0, 127, 255)
-			So(sb.scaleFactor, ShouldAlmostEqual, 1, kScaleTolerance)
+			s.SetScale(0, 127, 255)
+			So(s.scaleFactor, ShouldAlmostEqual, 1, kScaleTolerance)
 		})
 
 		Convey("1:2 scaling", func() {
-			sb.SetScale(0, 255, 511)
-			So(sb.scaleFactor, ShouldAlmostEqual, 2, kScaleTolerance)
+			s.SetScale(0, 255, 511)
+			So(s.scaleFactor, ShouldAlmostEqual, 2, kScaleTolerance)
 		})
 
 		Convey("1:1 scaling with non zero start point", func() {
-			sb.SetScale(10, 137, 265)
-			So(sb.scaleFactor, ShouldAlmostEqual, 1, kScaleTolerance)
+			s.SetScale(10, 137, 265)
+			So(s.scaleFactor, ShouldAlmostEqual, 1, kScaleTolerance)
 		})
 
 		Convey("Some larger realistic values", func() {
-			sb.SetScale(24, 36213, 64536)
-			So(sb.scaleFactor, ShouldAlmostEqual, 268.5, kScaleTolerance)
+			s.SetScale(24, 36213, 64536)
+			So(s.scaleFactor, ShouldAlmostEqual, 268.5, kScaleTolerance)
 		})
 	})
 
 	Convey("Getting value works as expectd", t, func() {
 		// ensure the scale is as expected
-		sb.SetScale(0, 32768, 65535)
+		s.SetScale(0, 32768, 65535)
 
 		Convey("first two bytes", func() {
 			sb.buf[0] = 0x80
 			sb.buf[1] = 0x00
 			sb.buf[2] = 0xff
-			So(sb.GetValue(0, 0), ShouldEqual, 127)
+			So(s.GetValue(0, 0), ShouldEqual, 127)
 		})
 
 		Convey("somewhere in the middle of the array", func() {
@@ -107,20 +106,20 @@ func TestSensorBoard(t *testing.T) {
 			sb.buf[196] = 0xff
 			sb.buf[197] = 0xff
 			sb.buf[198] = 0x88
-			So(sb.GetValue(8, 4), ShouldAlmostEqual, 255, 1)
+			So(s.GetValue(8, 4), ShouldAlmostEqual, 255, 1)
 		})
 
 		Convey("deliberately out of bounds", func() {
-			So(func() { sb.GetValue(SB_ROWS+1, SB_COLS+1) }, ShouldPanic)
+			So(func() { s.GetValue(sb_ROWS+1, sb_COLS+1) }, ShouldPanic)
 		})
 	})
 
 	Convey("Updater fetches new data", t, func() {
 		go sb.Update()              // start updater
 		time.Sleep(time.Second * 1) // Wait some time
-		start := sb.GetValue(0, 0)
+		start := s.GetValue(0, 0)
 		time.Sleep(time.Second * 1) // Wait some time
-		So(sb.GetValue(0, 0), ShouldBeGreaterThan, start)
+		So(s.GetValue(0, 0), ShouldBeGreaterThan, start)
 	})
 }
 

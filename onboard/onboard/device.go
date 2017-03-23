@@ -2,6 +2,7 @@ package onboard
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"github.com/goburrow/serial"
 	"log"
@@ -13,12 +14,15 @@ import (
 )
 
 const (
-	FRAMERATE     = 20
-	i2c_SLAVE     = 0x0703
-	SB_REG_VALUES = 0x0100
-	SB_ROWS       = 16
-	SB_COLS       = 24
-	SB_BITS       = 8
+	FRAMERATE = 20
+	i2c_SLAVE = 0x0703
+
+	sb_REG_VALUES = 0x0100
+	sb_ROWS       = 16
+	sb_COLS       = 24
+	sb_BITS       = 8
+	s_BANK1_COLS  = 16
+	s_BANK2_COLS  = 8
 
 	// Motor constants
 	m_BITS            = 8
@@ -51,11 +55,23 @@ type I2CBusInterface interface {
 }
 
 type SensorBoard struct {
-	i2cBus      I2CBusInterface
-	address     int
-	buf         []byte
-	zeroValue   uint16
-	scaleFactor float64
+	i2cBus  I2CBusInterface
+	address int
+	buf     []byte
+}
+
+type Sensor struct {
+	board        *SensorBoard
+	zeroValue    uint16
+	scaleFactor  float64
+	mirror       bool
+	rows, cols   int
+	oRows, oCols int
+}
+
+type SensorInterface interface {
+	SetScale(zero, half, full uint16)
+	GetValue(row, col int) uint8
 }
 
 type RMCS220xMotor struct {
@@ -66,6 +82,17 @@ type RMCS220xMotor struct {
 	rawLow     int
 	rawHigh    int
 	target     int
+}
+
+type MotorInterface interface {
+	SetTarget(target int)
+	GetPosition() (position int)
+	Home(calibrationValue int)
+}
+
+type Dynastat struct {
+	motors  map[string]MotorInterface
+	sensors map[string]SensorInterface
 }
 
 // Generic functions
@@ -169,28 +196,69 @@ func (bus *I2CBus) Get(i2cAddr int, reg uint16, buf []byte) {
 // Sensor Boards
 func (sb *SensorBoard) Update() {
 	for {
-		sb.i2cBus.Get(sb.address, SB_REG_VALUES, sb.buf)
+		sb.i2cBus.Get(sb.address, sb_REG_VALUES, sb.buf)
 		time.Sleep(time.Second / FRAMERATE)
 	}
 }
 
-func (sb *SensorBoard) SetScale(zero, half, full uint16) {
+func (sb *SensorBoard) getValue(reg int) uint16 {
+	return binary.BigEndian.Uint16([]byte{sb.buf[reg], sb.buf[reg+1]})
+}
+
+func NewSensor(board *SensorBoard, reg uint, mirror bool, rows, cols int,
+	zeroValue, halfValue, fullValue uint16) (sensor *Sensor, err error) {
+
+	sensor = new(Sensor)
+	sensor.board = board
+	sensor.mirror = mirror
+	sensor.rows = rows
+	sensor.cols = cols
+
+	switch reg {
+	case 1:
+		sensor.oCols = (s_BANK1_COLS - cols) / 2
+		break
+
+	case 2:
+		sensor.oCols = s_BANK1_COLS + (s_BANK2_COLS-cols)/2
+		break
+
+	default:
+		return nil, errors.New("Unkown reg mode")
+		break
+	}
+
+	sensor.oRows = (sb_ROWS - rows) / 2
+
+	sensor.SetScale(zeroValue, halfValue, fullValue)
+	return
+}
+
+func (s *Sensor) SetScale(zero, half, full uint16) {
 	var max, m1, m2 float64
 
 	// Calculate the proportions of the scaling
-	max = math.Pow(2, SB_BITS) - 1
+	max = math.Pow(2, sb_BITS) - 1
 	m1 = float64(half) / (max / 2)
 	m2 = float64(full) / max
 
 	// Assign struct values
-	sb.zeroValue = zero
-	sb.scaleFactor = (m1 + m2) / 2
+	s.zeroValue = zero
+	s.scaleFactor = (m1 + m2) / 2
 }
 
-func (sb *SensorBoard) GetValue(row, col int) uint8 {
-	i := row*SB_COLS + col
-	val := binary.BigEndian.Uint16([]byte{sb.buf[i], sb.buf[i+1]})
-	return uint8(float64(val) / sb.scaleFactor)
+func (s *Sensor) GetValue(row, col int) uint8 {
+	if s.mirror {
+		row = (s.rows - 1) - row
+		col = (s.cols - 1) - col
+	}
+
+	row += s.oRows
+	col += s.oCols
+
+	i := row*sb_COLS + col
+	val := s.board.getValue(i)
+	return uint8(float64(val) / s.scaleFactor)
 }
 
 // RMCS220xMotor
