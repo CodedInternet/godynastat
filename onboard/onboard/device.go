@@ -69,9 +69,12 @@ type Sensor struct {
 	oRows, oCols int
 }
 
+type SensorState [][]uint8
+
 type SensorInterface interface {
 	SetScale(zero, half, full uint16)
 	GetValue(row, col int) uint8
+	GetState() SensorState
 }
 
 type RMCS220xMotor struct {
@@ -84,10 +87,15 @@ type RMCS220xMotor struct {
 	target     int
 }
 
+type MotorState struct {
+	target, current int
+}
+
 type MotorInterface interface {
 	SetTarget(target int)
 	GetPosition() (position int)
 	Home(calibrationValue int)
+	GetState() MotorState
 }
 
 type Dynastat struct {
@@ -119,6 +127,11 @@ type DynastatConfig struct {
 		Rows, Cols                      int
 		ZeroValue, HalfValue, FullValue uint16
 	}
+}
+
+type DynastatState struct {
+	Motors  map[string]MotorState
+	Sensors map[string]SensorState
 }
 
 // Generic functions
@@ -288,6 +301,17 @@ func (s *Sensor) GetValue(row, col int) uint8 {
 	return uint8(float64(val) / s.scaleFactor)
 }
 
+func (s *Sensor) GetState() (state SensorState) {
+	state = make(SensorState, s.rows)
+	for i := 0; i < s.rows; i++ {
+		state[i] = make([]uint8, s.cols)
+		for j := 0; j < s.cols; j++ {
+			state[i][j] = s.GetValue(i, j)
+		}
+	}
+	return state
+}
+
 // RMCS220xMotor
 func (m *RMCS220xMotor) scalePos(val int, up bool) int {
 	max := int(math.Pow(2, float64(m_BITS)))
@@ -347,6 +371,12 @@ func (m *RMCS220xMotor) Home(cal int) {
 	m.bus.Put(m.address, m_REG_POSITION, int32(cal))
 
 	m.writePosition(0)
+}
+
+func (m *RMCS220xMotor) GetState() (state MotorState) {
+	state.target = m.target
+	state.current = m.GetPosition()
+	return
 }
 
 func NewRMCS220xMotor(bus UARTMCUInterface, controlBus I2CBusInterface, control uint16,
@@ -416,5 +446,36 @@ func NewDynastat(config DynastatConfig) (dynastat *Dynastat, err error) {
 	default:
 		return nil, errors.New("Unkown config version")
 	}
+	return
+}
+
+func (d *Dynastat) SetMotor(name string, position int) (err error) {
+	motor, ok := d.motors[name]
+	if ok == false {
+		return errors.New(fmt.Sprintf("Unkown motor %s", name))
+	}
+	motor.SetTarget(position)
+	return nil
+}
+
+func (d *Dynastat) readSensors() (result map[string]SensorState) {
+	result = make(map[string]SensorState)
+	for name, sensor := range d.sensors {
+		result[name] = sensor.GetState()
+	}
+	return
+}
+
+func (d *Dynastat) readMotors() (result map[string]MotorState) {
+	result = make(map[string]MotorState)
+	for name, motor := range d.motors {
+		result[name] = motor.GetState()
+	}
+	return
+}
+
+func (d *Dynastat) GetState() (result DynastatState) {
+	result.Motors = d.readMotors()
+	result.Sensors = d.readSensors()
 	return
 }

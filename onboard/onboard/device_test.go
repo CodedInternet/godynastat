@@ -47,6 +47,28 @@ type MockControlI2C struct {
 	base    uint16
 }
 
+type MockMotor struct {
+	target int
+}
+
+func (m *MockMotor) SetTarget(target int) {
+	m.target = target
+}
+
+func (m *MockMotor) GetPosition() int {
+	return 123
+}
+
+func (m *MockMotor) Home(_ int) {
+	panic("MockMotor panic")
+}
+
+func (m *MockMotor) GetState() (state MotorState) {
+	state.target = m.target
+	state.current = m.target
+	return
+}
+
 func (c *MockControlI2C) Get(i2cAddr int, cmd uint16, buf []byte) {
 	if i2cAddr != m_CONTROL_ADDRESS || cmd != m_CONTROL_REG {
 		panic("Incorrect call to the control mcu")
@@ -216,5 +238,55 @@ func TestRMCS220xMotor(t *testing.T) {
 		So(motor.GetPosition(), ShouldBeGreaterThan, 0) // difficult to actually test so just check it is moving
 		time.Sleep(time.Second)                         // should be plenty of time
 		So(motor.GetPosition(), ShouldEqual, 128)       // we can confirm it has finished because it is at 0
+	})
+}
+
+func TestDynastat(t *testing.T) {
+	motor := new(MockMotor)
+	sb := &SensorBoard{
+		&MockI2CSensorBoard{
+			data: make([]byte, sb_ROWS*sb_COLS),
+		},
+		0,
+		make([]byte, sb_COLS*sb_ROWS),
+	}
+	sensor, _ := NewSensor(sb, 2, true, 2, 4, 0, 127, 255)
+	dynastat := new(Dynastat)
+	dynastat.motors = make(map[string]MotorInterface, 1)
+	dynastat.motors["TestMotor"] = motor
+	dynastat.sensors = make(map[string]SensorInterface, 1)
+	dynastat.sensors["TestSensor"] = sensor
+
+	Convey("Setting a motor value works", t, func() {
+		Convey("known motor works as expected", func() {
+			dynastat.SetMotor("TestMotor", 42)
+			So(motor.target, ShouldEqual, 42)
+		})
+
+		Convey("unkown motor returns appropriate error", func() {
+			err := dynastat.SetMotor("whoami", 123)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "whoami")
+		})
+	})
+
+	Convey("get states works as expected", t, func() {
+		Convey("get motors contains our test motor", func() {
+			state := dynastat.readMotors()
+			So(state, ShouldContainKey, "TestMotor")
+		})
+
+		Convey("read sensors contains our test sensor", func() {
+			state := dynastat.readSensors()
+			So(state, ShouldContainKey, "TestSensor")
+			So(state["TestSensor"], ShouldHaveLength, sensor.rows)
+			So(state["TestSensor"][0], ShouldHaveLength, sensor.cols)
+		})
+
+		Convey("get global state works as expected", func() {
+			state := dynastat.GetState()
+			So(state.Motors, ShouldContainKey, "TestMotor")
+			So(state.Sensors, ShouldContainKey, "TestSensor")
+		})
 	})
 }
