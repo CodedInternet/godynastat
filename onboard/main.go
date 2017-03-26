@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/abiosoft/ishell"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -17,19 +18,19 @@ func main() {
 	yamlFile, err := ioutil.ReadFile(filename)
 
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("Unable to read yaml file: %v", err))
 	}
 
 	var config DynastatConfig
 	err = yaml.Unmarshal(yamlFile, &config)
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("Unable to unmarshal yaml: %v", err))
 	}
 
 	var dynastat *Dynastat
 	dynastat, err = NewDynastat(config)
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("Unable to initialize dynastat: %v", err))
 	}
 
 	shell := ishell.New()
