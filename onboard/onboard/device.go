@@ -136,6 +136,11 @@ type DynastatState struct {
 	Sensors map[string]SensorState
 }
 
+type DynastatInterface interface {
+	GetState() DynastatState
+	SetMotor(name string, position int) (err error)
+}
+
 // Generic functions
 func translateValue(val, leftMin, leftMax, rightMin, rightMax int) int {
 	// Figure out how 'wide' each range is
