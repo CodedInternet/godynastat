@@ -7,8 +7,8 @@ echo "Installing dependencies"
 go get .
 
 # we need to patch webrtc for arm builds
-#curl -o /go/src/github.com/keroserene/go-webrtc/webrtc-linux-arm.pc https://raw.githubusercontent.com/CodedInternet/go-webrtc/arm/webrtc-linux-arm.pc
-#curl -o /go/src/github.com/keroserene/go-webrtc/lib/libwebrtc-linux-arm-magic.a https://raw.githubusercontent.com/CodedInternet/go-webrtc/arm/lib/libwebrtc-linux-arm-magic.a
+curl -o /go/src/github.com/keroserene/go-webrtc/webrtc-linux-arm.pc https://raw.githubusercontent.com/CodedInternet/go-webrtc/arm/webrtc-linux-arm.pc
+curl -o /go/src/github.com/keroserene/go-webrtc/lib/libwebrtc-linux-arm-magic.a https://raw.githubusercontent.com/CodedInternet/go-webrtc/arm/lib/libwebrtc-linux-arm-magic.a
 
 echo "Building"
 go build
