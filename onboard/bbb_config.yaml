@@ -33,12 +33,20 @@ motors:
 #    control: 7
   right_rearfoot_frontal:
     address: 0x21
-    cal: -260
-    low: -163
-    high: 160
+    cal: 260 # requires tape to actuate due to micro being too low
+    low: 200
+    high: 200
     speed: 200
     damping: 255
-    control: 5
+    control: 10
+#  left_foot_size:
+#    address: 0x10
+#    cal: -62500
+#    low: -60000
+#    high: 20000
+#    speed: 255
+#    damping: 255
+#    control:
 sensors:
   left_heel:
     address: 0x15
