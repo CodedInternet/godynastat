@@ -1,3 +1,9 @@
+// Copyright 2017 Coded Internet Ltd. All rights reserved.
+
+/*
+	A set of features related directly to the interaction with the device hardware.
+*/
+
 package main
 
 import (
@@ -142,6 +148,8 @@ type DynastatInterface interface {
 }
 
 // Generic functions
+
+// translateValue takes in a value and scales it from between left -> right.
 func translateValue(val, leftMin, leftMax, rightMin, rightMax int) int {
 	// Figure out how 'wide' each range is
 	leftSpan := float64(leftMax - leftMin)
@@ -155,6 +163,9 @@ func translateValue(val, leftMin, leftMax, rightMin, rightMax int) int {
 }
 
 // MCU
+
+// OpenUARTMCU performs the necessary actions to open a new UART connection on the device.
+// This sets up the UART port for propper communication with the hardware.
 func OpenUARTMCU(ttyName string) *UARTMCU {
 	port, err := serial.Open(&serial.Config{
 		Address:  ttyName,
@@ -171,10 +182,13 @@ func OpenUARTMCU(ttyName string) *UARTMCU {
 	return mcu
 }
 
+// Close is a proxy to the existing close method on the port
 func (mcu *UARTMCU) Close() {
 	mcu.port.Close()
 }
 
+// Put sends date out to the UARTMCU in the required format to act on a motor.
+// More features may be added later.
 func (mcu *UARTMCU) Put(i2cAddr int, cmd uint8, value int32) {
 	buf := fmt.Sprintf("M%d %d %d", i2cAddr, cmd, value)
 
@@ -184,6 +198,7 @@ func (mcu *UARTMCU) Put(i2cAddr int, cmd uint8, value int32) {
 	mcu.lock.Unlock()
 }
 
+// Get returns values from the MCU on the specified registry
 func (mcu *UARTMCU) Get(i2cAddr int, cmd uint8) (value int32) {
 	// Create buffers and format strings outside of cricial section
 	var input []byte
@@ -201,6 +216,9 @@ func (mcu *UARTMCU) Get(i2cAddr int, cmd uint8) (value int32) {
 }
 
 // I2C related functions
+
+// OpenI2C performs the actions necessary to create the I2CBus object.
+// This opens the file and does very basic error checking on it
 func OpenI2C(dev string) *I2CBus {
 	fd, err := os.Open(dev)
 	if err != nil {
@@ -210,6 +228,8 @@ func OpenI2C(dev string) *I2CBus {
 	return &I2CBus{fd: fd}
 }
 
+// ioctl proxy to appropriate syscall method.
+// This is part of our own i2c library
 func ioctl(fd, cmd, arg uintptr) (err error) {
 	_, _, e1 := syscall.Syscall6(syscall.SYS_IOCTL, fd, cmd, arg, 0, 0, 0)
 	if e1 != 0 {
@@ -218,6 +238,7 @@ func ioctl(fd, cmd, arg uintptr) (err error) {
 	return
 }
 
+// Connect send the commands to put the receiving device into slave mode so it can accept commands from the BBB
 func (bus *I2CBus) Connect(i2cAddr int) {
 	if err := ioctl(bus.fd.Fd(), i2c_SLAVE, uintptr(i2cAddr)); err != nil {
 		panic(err)
@@ -225,6 +246,8 @@ func (bus *I2CBus) Connect(i2cAddr int) {
 	return
 }
 
+// Get performs write/read to get a value from an I2C device in a 16bit registry space.
+// Thread-safe.
 func (bus *I2CBus) Get(i2cAddr int, reg uint16, buf []byte) {
 	// perform bitbashing to get write command first
 	var wbuf []byte
@@ -240,6 +263,8 @@ func (bus *I2CBus) Get(i2cAddr int, reg uint16, buf []byte) {
 	bus.lock.Unlock()
 }
 
+// Put performs write to I2C device in a 16bit registry space.
+// Thread-safe
 func (bus *I2CBus) Put(i2cAddr int, reg uint16, buf []byte) {
 	wbuf := make([]byte, len(buf)+2)
 	wbuf[0] = byte(reg >> 8 & 0xff)
@@ -252,6 +277,8 @@ func (bus *I2CBus) Put(i2cAddr int, reg uint16, buf []byte) {
 }
 
 // Sensor Boards
+
+// Update routine to fetch new data from the board at the appropriate frame-rate
 func (sb *SensorBoard) Update() {
 	for {
 		sb.i2cBus.Get(sb.address, sb_REG_VALUES, sb.buf)
@@ -259,10 +286,13 @@ func (sb *SensorBoard) Update() {
 	}
 }
 
+// getValue returns a uint16 from the appropriate reg and +1 to ease with this process
 func (sb *SensorBoard) getValue(reg int) uint16 {
 	return binary.BigEndian.Uint16([]byte{sb.buf[reg], sb.buf[reg+1]})
 }
 
+// changeAddress updates the address register on the sensor board.
+// This update to the hardware requires a reboot of the sensor board.
 func (sb *SensorBoard) changeAddress(newAddr int) {
 	if newAddr < 0x00 || newAddr > 0x7f {
 		log.Fatalf("Invalid address: %x", newAddr)
@@ -282,6 +312,7 @@ func (sb *SensorBoard) changeAddress(newAddr int) {
 	sb.i2cBus.Put(sb.address, sb_REG_ADDR, buf)
 }
 
+// NewSensor provides an individual sensor on the given sensor board.
 func NewSensor(board *SensorBoard, reg uint, mirror bool, rows, cols int,
 	zeroValue, halfValue, fullValue uint16) (sensor *Sensor, err error) {
 
@@ -311,6 +342,7 @@ func NewSensor(board *SensorBoard, reg uint, mirror bool, rows, cols int,
 	return
 }
 
+// SetScale manually calculates the scale and updates it on the sensor
 func (s *Sensor) SetScale(zero, half, full uint16) {
 	var max, m1, m2 float64
 
@@ -324,6 +356,8 @@ func (s *Sensor) SetScale(zero, half, full uint16) {
 	s.scaleFactor = (m1 + m2) / 2
 }
 
+// GetValue calculates the appropriate reg value then returns it from the board.
+// Applies offsets if operating in two sensor mode.
 func (s *Sensor) GetValue(row, col int) uint8 {
 	if s.mirror {
 		row = (s.rows - 1) - row
@@ -338,6 +372,7 @@ func (s *Sensor) GetValue(row, col int) uint8 {
 	return uint8(float64(val) / s.scaleFactor)
 }
 
+// GetState goes over all rows and cols on a sensor and gives values for this
 func (s *Sensor) GetState() (state SensorState) {
 	state = make(SensorState, s.rows)
 	for i := 0; i < s.rows; i++ {
@@ -350,6 +385,8 @@ func (s *Sensor) GetState() (state SensorState) {
 }
 
 // RMCS220xMotor
+
+// scalePos takes in a value and either scales it up to 16bit motor range or down to 0-255 application range.
 func (m *RMCS220xMotor) scalePos(val int, up bool) int {
 	max := int(math.Pow(2, float64(m_BITS)))
 	if up {
@@ -369,14 +406,17 @@ func (m *RMCS220xMotor) scalePos(val int, up bool) int {
 	}
 }
 
+// writePosition performs the write to the motor.
 func (m *RMCS220xMotor) writePosition(pos int32) {
 	m.bus.Put(m.address, m_REG_GOTO, pos)
 }
 
+// readPosition gets the current position from the motors encoder.
 func (m *RMCS220xMotor) readPosition() int32 {
 	return m.bus.Get(m.address, m_REG_POSITION)
 }
 
+// readControl looks at the control pin for the current motor and determines if it has been pressed.
 func (m *RMCS220xMotor) readControl() bool {
 	buf := make([]byte, 2)
 	m.controlBus.Get(m_CONTROL_ADDRESS, m_CONTROL_REG, buf)
@@ -384,16 +424,21 @@ func (m *RMCS220xMotor) readControl() bool {
 	return val&m.control == 0
 }
 
+// SetTarget updates the current target in software and issues the write to the motor with the scaled value.
 func (m *RMCS220xMotor) SetTarget(target int) {
 	m.target = target
 	m.writePosition(int32(m.scalePos(target, true)))
 }
 
+// GetPosition reads the position from motor and scales it to application range.
 func (m *RMCS220xMotor) GetPosition() int {
 	raw := m.readPosition()
 	return m.scalePos(int(raw), false)
 }
 
+// Home gradually moves the motor until it is pressing its home pin.
+// To avoid crashes being potentially destructive to hardware, this in done in small increments so the motor will not
+// continue unless the software deems it safe and reissues the move command.
 func (m *RMCS220xMotor) Home(cal int) {
 	inc := int32(math.Abs(float64(m.rawHigh-m.rawLow))) / 10
 	// Invert increment so we go in the right direction
@@ -410,12 +455,16 @@ func (m *RMCS220xMotor) Home(cal int) {
 	m.writePosition(0)
 }
 
+// GetState provides information on the desired and current position of the motor.
+// This can be used to determine if the motor is currently at its target or is in transit
 func (m *RMCS220xMotor) GetState() (state MotorState) {
 	state.target = m.target
 	state.current = m.GetPosition()
 	return
 }
 
+// NewRMCS220xMotor sets up all the necessary components to run a motor through the custom MCU.
+// Also sets up the onboard controller of the motor to include desired speed and damping parameters.
 func NewRMCS220xMotor(bus UARTMCUInterface, controlBus I2CBusInterface, control uint16,
 	address, rawLow, rawHigh int, speed, damping int32) (motor *RMCS220xMotor) {
 
@@ -433,6 +482,8 @@ func NewRMCS220xMotor(bus UARTMCUInterface, controlBus I2CBusInterface, control 
 }
 
 // Device level functions
+
+// NewDynastat sets up all the components of the device ready to go based on the config provided.
 func NewDynastat(config DynastatConfig) (dynastat *Dynastat, err error) {
 	switch config.Version {
 	case 1:
@@ -486,6 +537,7 @@ func NewDynastat(config DynastatConfig) (dynastat *Dynastat, err error) {
 	return
 }
 
+// SetMotor issues the write command to the desired motor with an application level value.
 func (d *Dynastat) SetMotor(name string, position int) (err error) {
 	motor, ok := d.Motors[name]
 	if ok == false {
@@ -495,6 +547,7 @@ func (d *Dynastat) SetMotor(name string, position int) (err error) {
 	return nil
 }
 
+// readSensors calls GetState on each sensor to build a dictionary of the current sensor readings.
 func (d *Dynastat) readSensors() (result map[string]SensorState) {
 	result = make(map[string]SensorState)
 	for name, sensor := range d.sensors {
@@ -503,6 +556,7 @@ func (d *Dynastat) readSensors() (result map[string]SensorState) {
 	return
 }
 
+// readMotors calls GetState on each motor to build a dictionary of the current motor states.
 func (d *Dynastat) readMotors() (result map[string]MotorState) {
 	result = make(map[string]MotorState)
 	for name, motor := range d.Motors {
@@ -511,6 +565,7 @@ func (d *Dynastat) readMotors() (result map[string]MotorState) {
 	return
 }
 
+// GetState builds a complete state of the device including sensor and motor states.
 func (d *Dynastat) GetState() (result DynastatState) {
 	result.Motors = d.readMotors()
 	result.Sensors = d.readSensors()
