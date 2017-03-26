@@ -19,4 +19,4 @@ hwclock -f /dev/rtc1 -s
 echo "Started at " $(date) | tee -a /data/start.log
 
 # Start application
-$SRCDIR/onboard/onboard
+onboard

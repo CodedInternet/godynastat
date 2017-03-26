@@ -7,4 +7,4 @@ COPY . $SRCDIR
 
 RUN bash $SRCDIR/onboard/build.sh
 
-CMD $SRCDIR/onboard/run.sh
+CMD ["bash", "run.sh"]
