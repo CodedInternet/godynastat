@@ -1,4 +1,4 @@
-package onboard
+package main
 
 import (
 	"encoding/binary"
