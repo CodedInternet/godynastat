@@ -13,7 +13,10 @@ const (
 )
 
 type MockI2CSensorBoard struct {
-	data []byte
+	data    []byte
+	putAddr int
+	putCmd  uint16
+	buf     []byte
 }
 
 func (s *MockI2CSensorBoard) Get(i2cAddr int, cmd uint16, buf []byte) {
@@ -21,6 +24,12 @@ func (s *MockI2CSensorBoard) Get(i2cAddr int, cmd uint16, buf []byte) {
 		buf[i] = s.data[i]
 		s.data[i]++
 	}
+}
+
+func (s *MockI2CSensorBoard) Put(i2cAddr int, cmd uint16, buf []byte) {
+	s.putAddr = i2cAddr
+	s.putCmd = cmd
+	s.buf = buf
 }
 
 type MockUARTMCU struct {
@@ -80,11 +89,17 @@ func (c *MockControlI2C) Get(i2cAddr int, cmd uint16, buf []byte) {
 	}
 }
 
+func (c *MockControlI2C) Put(i2cAddr int, cmd uint16, buf []byte) {
+	panic("MockControlI2C does not implment Put")
+}
+
 func TestSensorBoard(t *testing.T) {
+	msb := &MockI2CSensorBoard{
+		data: make([]byte, sb_ROWS*sb_COLS),
+		buf:  make([]byte, 1),
+	}
 	sb := &SensorBoard{
-		&MockI2CSensorBoard{
-			data: make([]byte, sb_ROWS*sb_COLS),
-		},
+		msb,
 		0,
 		make([]byte, sb_COLS*sb_ROWS),
 	}
@@ -142,6 +157,16 @@ func TestSensorBoard(t *testing.T) {
 		start := s.GetValue(0, 0)
 		time.Sleep(time.Second * 1) // Wait some time
 		So(s.GetValue(0, 0), ShouldBeGreaterThan, start)
+	})
+
+	SkipConvey("set address send the correct data", t, func() {
+		sb.address = 0x21
+		msb.buf[0] = 0xFF
+		msb.buf[1] = 0x20
+		sb.changeAddress(0x22)
+		So(msb.putAddr, ShouldEqual, 0x21)
+		So(msb.putCmd, ShouldEqual, sb_REG_ADDR)
+		So(msb.buf[0], ShouldEqual, 0x22)
 	})
 }
 

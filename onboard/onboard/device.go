@@ -18,6 +18,7 @@ const (
 	i2c_SLAVE = 0x0703
 
 	sb_REG_VALUES = 0x0100
+	sb_REG_ADDR   = 0x0004
 	sb_ROWS       = 16
 	sb_COLS       = 24
 	sb_BITS       = 8
@@ -52,6 +53,7 @@ type I2CBus struct {
 
 type I2CBusInterface interface {
 	Get(i2cAddr int, reg uint16, buf []byte)
+	Put(i2cAddr int, reg uint16, buf []byte)
 }
 
 type SensorBoard struct {
@@ -233,6 +235,17 @@ func (bus *I2CBus) Get(i2cAddr int, reg uint16, buf []byte) {
 	bus.lock.Unlock()
 }
 
+func (bus *I2CBus) Put(i2cAddr int, reg uint16, buf []byte) {
+	wbuf := make([]byte, len(buf)+2)
+	wbuf[0] = byte(reg >> 8 & 0xff)
+	wbuf[1] = byte(reg & 0xff)
+
+	bus.lock.Lock()
+	bus.Connect(i2cAddr)
+	bus.fd.Write(wbuf)
+	bus.lock.Unlock()
+}
+
 // Sensor Boards
 func (sb *SensorBoard) Update() {
 	for {
@@ -243,6 +256,25 @@ func (sb *SensorBoard) Update() {
 
 func (sb *SensorBoard) getValue(reg int) uint16 {
 	return binary.BigEndian.Uint16([]byte{sb.buf[reg], sb.buf[reg+1]})
+}
+
+func (sb *SensorBoard) changeAddress(newAddr int) {
+	if newAddr < 0x00 || newAddr > 0x7f {
+		log.Fatalf("Invalid address: %x", newAddr)
+		return
+	}
+
+	// Read old address to sanity check
+	buf := make([]byte, 1)
+	sb.i2cBus.Get(sb.address, sb_REG_ADDR, buf)
+	oldAddr := int(buf[0])
+
+	if oldAddr != sb.address {
+		log.Fatalf("Stored address %x does not match current device %x", oldAddr, sb.address)
+	}
+
+	buf[0] = byte(newAddr)
+	sb.i2cBus.Put(sb.address, sb_REG_ADDR, buf)
 }
 
 func NewSensor(board *SensorBoard, reg uint, mirror bool, rows, cols int,
