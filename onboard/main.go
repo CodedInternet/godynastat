@@ -4,12 +4,16 @@ import (
 	"github.com/abiosoft/ishell"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 )
 
 func main() {
 	filename, _ := filepath.Abs("./bbb_config.yaml")
+	if os.Getenv("RESIN") == "1" {
+		filename = "/go/bbb_config.yaml"
+	}
 	yamlFile, err := ioutil.ReadFile(filename)
 
 	if err != nil {
