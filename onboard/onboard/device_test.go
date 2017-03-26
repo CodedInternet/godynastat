@@ -277,8 +277,8 @@ func TestDynastat(t *testing.T) {
 	}
 	sensor, _ := NewSensor(sb, 2, true, 2, 4, 0, 127, 255)
 	dynastat := new(Dynastat)
-	dynastat.motors = make(map[string]MotorInterface, 1)
-	dynastat.motors["TestMotor"] = motor
+	dynastat.Motors = make(map[string]MotorInterface, 1)
+	dynastat.Motors["TestMotor"] = motor
 	dynastat.sensors = make(map[string]SensorInterface, 1)
 	dynastat.sensors["TestSensor"] = sensor
 
@@ -296,7 +296,7 @@ func TestDynastat(t *testing.T) {
 	})
 
 	Convey("get states works as expected", t, func() {
-		Convey("get motors contains our test motor", func() {
+		Convey("get Motors contains our test motor", func() {
 			state := dynastat.readMotors()
 			So(state, ShouldContainKey, "TestMotor")
 		})

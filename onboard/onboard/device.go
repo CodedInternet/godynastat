@@ -101,7 +101,7 @@ type MotorInterface interface {
 }
 
 type Dynastat struct {
-	motors    map[string]MotorInterface
+	Motors    map[string]MotorInterface
 	sensors   map[string]SensorInterface
 	sensorBus I2CBusInterface
 	motorBus  UARTMCUInterface
@@ -441,7 +441,7 @@ func NewDynastat(config DynastatConfig) (dynastat *Dynastat, err error) {
 		dynastat.motorBus = OpenUARTMCU(config.UART.motor)
 
 		for name, conf := range config.Motors {
-			dynastat.motors[name] = NewRMCS220xMotor(
+			dynastat.Motors[name] = NewRMCS220xMotor(
 				dynastat.motorBus,
 				dynastat.sensorBus,
 				conf.Control,
@@ -487,7 +487,7 @@ func NewDynastat(config DynastatConfig) (dynastat *Dynastat, err error) {
 }
 
 func (d *Dynastat) SetMotor(name string, position int) (err error) {
-	motor, ok := d.motors[name]
+	motor, ok := d.Motors[name]
 	if ok == false {
 		return errors.New(fmt.Sprintf("Unkown motor %s", name))
 	}
@@ -505,7 +505,7 @@ func (d *Dynastat) readSensors() (result map[string]SensorState) {
 
 func (d *Dynastat) readMotors() (result map[string]MotorState) {
 	result = make(map[string]MotorState)
-	for name, motor := range d.motors {
+	for name, motor := range d.Motors {
 		result[name] = motor.GetState()
 	}
 	return
