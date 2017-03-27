@@ -31,14 +31,22 @@ motors:
 #    speed: 255
 #    damping: 127
 #    control: 7
-  right_rearfoot_frontal:
-    address: 0x21
-    cal: 260 # requires tape to actuate due to micro being too low
-    low: 200
-    high: 200
-    speed: 200
+#  right_rearfoot_frontal:
+#    address: 0x21
+#    cal: 260 # requires tape to actuate due to micro being too low
+#    low: 200
+#    high: 200
+#    speed: 200
+#    damping: 255
+#    control: 10
+  right_rearfoot_inclination:
+    address: 0x22
+    cal: 420
+    low: 0
+    high: -500
+    speed: 255
     damping: 255
-    control: 10
+    control: 9
 #  left_foot_size:
 #    address: 0x10
 #    cal: -62500
