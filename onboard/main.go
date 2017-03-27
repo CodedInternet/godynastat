@@ -49,7 +49,7 @@ func main() {
 		Func: func(c *ishell.Context) {
 			name := c.Args[0]
 			position, _ := strconv.Atoi(c.Args[1])
-			c.Printf("Moving Motor %s to %d", name, position)
+			c.Printf("Moving Motor %s to %d\n", name, position)
 			dynastat.SetMotor(name, position)
 		},
 	})
@@ -58,8 +58,15 @@ func main() {
 		Help: "home <Motor>",
 		Func: func(c *ishell.Context) {
 			name := string(c.Args[0])
-			c.Printf("Homing Motor", name)
+			c.Printf("Homing Motor\n", name)
 			dynastat.Motors[name].Home(config.Motors[name].Cal)
+		},
+	})
+	shell.AddCmd(&ishell.Cmd{
+		Name: "state",
+		Func: func(c *ishell.Context) {
+			c.Println("Getting state")
+			c.Printf("#v", dynastat.GetState())
 		},
 	})
 	shell.Start()
