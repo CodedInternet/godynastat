@@ -11,9 +11,11 @@ import (
 )
 
 func main() {
-	filename, _ := filepath.Abs("./bbb_config.yaml")
+	var filename string
 	if os.Getenv("RESIN") == "1" {
 		filename = "/go/bbb_config.yaml"
+	} else {
+		filename, _ = filepath.Abs("./bbb_config.yaml")
 	}
 	yamlFile, err := ioutil.ReadFile(filename)
 
