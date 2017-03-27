@@ -35,6 +35,7 @@ func main() {
 	}
 
 	var dynastat *Dynastat
+	fmt.Printf("Establishing device with config %#v\n", config)
 	dynastat, err = NewDynastat(config)
 	if err != nil {
 		panic(fmt.Sprintf("Unable to initialize dynastat: %v", err))
@@ -44,20 +45,20 @@ func main() {
 	shell.Println("Dynastat development shell")
 	shell.AddCmd(&ishell.Cmd{
 		Name: "move",
-		Help: "move <motor> <position (0-255)>",
+		Help: "move <Motor> <position (0-255)>",
 		Func: func(c *ishell.Context) {
 			name := c.Args[0]
 			position, _ := strconv.Atoi(c.Args[1])
-			c.Printf("Moving motor %s to %d", name, position)
+			c.Printf("Moving Motor %s to %d", name, position)
 			dynastat.SetMotor(name, position)
 		},
 	})
 	shell.AddCmd(&ishell.Cmd{
 		Name: "home",
-		Help: "home <motor>",
+		Help: "home <Motor>",
 		Func: func(c *ishell.Context) {
 			name := string(c.Args[0])
-			c.Printf("Homing motor", name)
+			c.Printf("Homing Motor", name)
 			dynastat.Motors[name].Home(config.Motors[name].Cal)
 		},
 	})

@@ -120,7 +120,7 @@ type DynastatConfig struct {
 		Sensor int
 	}
 	UART struct {
-		motor string
+		Motor string
 	}
 	Motors map[string]struct {
 		Address        int
@@ -174,7 +174,7 @@ func OpenUARTMCU(ttyName string) *UARTMCU {
 	})
 
 	if err != nil {
-		log.Fatal(err)
+		panic(fmt.Sprintf("Unable to open UART %s: %v", ttyName, err))
 		return nil
 	}
 	mcu := new(UARTMCU)
@@ -489,7 +489,7 @@ func NewDynastat(config DynastatConfig) (dynastat *Dynastat, err error) {
 	case 1:
 		dynastat = new(Dynastat)
 		dynastat.sensorBus = OpenI2C(fmt.Sprintf("/dev/i2c-%d", config.I2CBus.Sensor))
-		dynastat.motorBus = OpenUARTMCU(config.UART.motor)
+		dynastat.motorBus = OpenUARTMCU(config.UART.Motor)
 
 		for name, conf := range config.Motors {
 			dynastat.Motors[name] = NewRMCS220xMotor(
