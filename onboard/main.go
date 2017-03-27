@@ -12,10 +12,15 @@ import (
 
 func main() {
 	var filename string
+	var err error
 	if os.Getenv("RESIN") == "1" {
+		println("Running on resin")
 		filename = "/go/bbb_config.yaml"
 	} else {
-		filename, _ = filepath.Abs("./bbb_config.yaml")
+		filename, err = filepath.Abs("./bbb_config.yaml")
+	}
+	if err != nil {
+		panic(fmt.Sprintf("Unable to find file: %v", err))
 	}
 	yamlFile, err := ioutil.ReadFile(filename)
 
