@@ -189,7 +189,7 @@ func (mcu *UARTMCU) Close() {
 // Put sends date out to the UARTMCU in the required format to act on a motor.
 // More features may be added later.
 func (mcu *UARTMCU) Put(i2cAddr int, cmd uint8, value int32) {
-	buf := fmt.Sprintf("M%d %d %d", i2cAddr, cmd, value)
+	buf := fmt.Sprintf("M%d %d %d\n", i2cAddr, cmd, value)
 
 	// Keep as little processing outside the critical section as possible
 	mcu.lock.Lock()
