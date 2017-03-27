@@ -13,7 +13,6 @@ import (
 	"github.com/goburrow/serial"
 	"log"
 	"math"
-	"os"
 	"sync"
 	"syscall"
 	"time"
@@ -53,7 +52,7 @@ type UARTMCUInterface interface {
 }
 
 type I2CBus struct {
-	fd   *os.File
+	fd   int
 	lock sync.Mutex
 }
 
@@ -220,7 +219,7 @@ func (mcu *UARTMCU) Get(i2cAddr int, cmd uint8) (value int32) {
 // OpenI2C performs the actions necessary to create the I2CBus object.
 // This opens the file and does very basic error checking on it
 func OpenI2C(dev string) *I2CBus {
-	fd, err := os.Open(dev)
+	fd, err := syscall.Open(dev, syscall.O_RDWR, 0777)
 	if err != nil {
 		panic(err)
 	}
@@ -240,7 +239,7 @@ func ioctl(fd, cmd, arg uintptr) (err error) {
 
 // Connect send the commands to put the receiving device into slave mode so it can accept commands from the BBB
 func (bus *I2CBus) Connect(i2cAddr int) {
-	if err := ioctl(bus.fd.Fd(), i2c_SLAVE, uintptr(i2cAddr)); err != nil {
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(bus.fd), i2c_SLAVE, uintptr(i2cAddr)); err != 0 {
 		panic(err)
 	}
 	return
@@ -250,16 +249,15 @@ func (bus *I2CBus) Connect(i2cAddr int) {
 // Thread-safe.
 func (bus *I2CBus) Get(i2cAddr int, reg uint16, buf []byte) {
 	// perform bitbashing to get write command first
-	var wbuf []byte
+	wbuf := make([]byte, len(buf)+2)
 	wbuf[0] = byte(reg >> 8 & 0xff)
 	wbuf[1] = byte(reg & 0xff)
 
 	bus.lock.Lock()
 	bus.Connect(i2cAddr)
 	// Do write/read inside critical section
-	bus.fd.Write(wbuf)
-	bus.fd.Read(buf)
-
+	syscall.Write(bus.fd, wbuf)
+	syscall.Read(bus.fd, buf)
 	bus.lock.Unlock()
 }
 
@@ -272,7 +270,7 @@ func (bus *I2CBus) Put(i2cAddr int, reg uint16, buf []byte) {
 
 	bus.lock.Lock()
 	bus.Connect(i2cAddr)
-	bus.fd.Write(wbuf)
+	syscall.Write(bus.fd, wbuf)
 	bus.lock.Unlock()
 }
 
@@ -487,7 +485,12 @@ func NewRMCS220xMotor(bus UARTMCUInterface, controlBus I2CBusInterface, control 
 func NewDynastat(config DynastatConfig) (dynastat *Dynastat, err error) {
 	switch config.Version {
 	case 1:
+		// initialise
 		dynastat = new(Dynastat)
+		dynastat.Motors = make(map[string]MotorInterface, len(config.Motors))
+		dynastat.sensors = make(map[string]SensorInterface, len(config.Sensors))
+
+		// Open COM ports
 		dynastat.sensorBus = OpenI2C(fmt.Sprintf("/dev/i2c-%d", config.I2CBus.Sensor))
 		dynastat.motorBus = OpenUARTMCU(config.UART.Motor)
 
