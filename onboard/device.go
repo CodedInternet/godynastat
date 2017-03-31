@@ -24,6 +24,7 @@ const (
 
 	sb_REG_VALUES = 0x0100
 	sb_REG_ADDR   = 0x0004
+	sb_REG_MODE   = 0x01
 	sb_ROWS       = 16
 	sb_COLS       = 24
 	sb_BITS       = 8
@@ -129,7 +130,8 @@ type DynastatConfig struct {
 		Control        uint16
 	}
 	Sensors map[string]struct {
-		Address, Mode                   int
+		Address                         int
+		Mode                            uint8
 		Registry                        uint
 		Mirror                          bool
 		Rows, Cols                      int
@@ -283,6 +285,13 @@ func (sb *SensorBoard) Update() {
 		sb.i2cBus.Get(sb.address, sb_REG_VALUES, sb.buf)
 		time.Sleep(time.Second / FRAMERATE)
 	}
+}
+
+// Sets the mode of the sensor board in the firmware
+func (sb *SensorBoard) SetMode(mode uint8) {
+	buf := make([]byte, 1)
+	buf[0] = mode
+	sb.i2cBus.Put(sb.address, sb_REG_MODE, buf)
 }
 
 // getValue returns a uint16 from the appropriate reg and +1 to ease with this process
@@ -524,6 +533,7 @@ func NewDynastat(config DynastatConfig) (dynastat *Dynastat, err error) {
 					conf.Address,
 					make([]byte, sb_ROWS*sb_COLS),
 				}
+				board.SetMode(conf.Mode)
 				go board.Update()
 			}
 
