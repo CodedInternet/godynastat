@@ -465,6 +465,8 @@ func (m *RMCS220xMotor) Home(cal int) {
 
 	m.bus.Put(m.address, m_REG_POSITION, int32(cal))
 
+	// Sleep to allow the motor to reset the PID to the new encoder position and allow the MCU time to catch up
+	time.Sleep(time.Millisecond)
 	m.writePosition(0)
 	return
 }
