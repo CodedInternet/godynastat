@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/tinylib/msgp/msgp"
 	"go.bug.st/serial.v1"
 	"log"
 	"math"
@@ -97,7 +98,7 @@ type RMCS220xMotor struct {
 }
 
 type MotorState struct {
-	target, current int
+	Target, Current int
 }
 
 type MotorInterface interface {
@@ -113,6 +114,8 @@ type Dynastat struct {
 	sensorBus I2CBusInterface
 	motorBus  UARTMCUInterface
 }
+
+//go:generate msgp
 
 type DynastatConfig struct {
 	Version          int
@@ -313,7 +316,7 @@ func (sb *SensorBoard) changeAddress(newAddr int) {
 	oldAddr := int(buf[0])
 
 	if oldAddr != sb.address {
-		log.Fatalf("Stored address %x does not match current device %x", oldAddr, sb.address)
+		log.Fatalf("Stored address %x does not match Current device %x", oldAddr, sb.address)
 	}
 
 	buf[0] = byte(newAddr)
@@ -419,7 +422,7 @@ func (m *RMCS220xMotor) writePosition(pos int32) {
 	m.bus.Put(m.address, m_REG_GOTO, pos)
 }
 
-// readPosition gets the current position from the motors encoder.
+// readPosition gets the Current position from the motors encoder.
 func (m *RMCS220xMotor) readPosition() int32 {
 	val, err := m.bus.Get(m.address, m_REG_POSITION)
 	if err != nil {
@@ -428,7 +431,7 @@ func (m *RMCS220xMotor) readPosition() int32 {
 	return val
 }
 
-// readControl looks at the control pin for the current motor and determines if it has been pressed.
+// readControl looks at the control pin for the Current motor and determines if it has been pressed.
 func (m *RMCS220xMotor) readControl() bool {
 	buf := make([]byte, 2)
 	m.controlBus.Get(m_CONTROL_ADDRESS, m_CONTROL_REG, buf)
@@ -436,7 +439,7 @@ func (m *RMCS220xMotor) readControl() bool {
 	return val&m.control == 0
 }
 
-// SetTarget updates the current target in software and issues the write to the motor with the scaled value.
+// SetTarget updates the Current Target in software and issues the write to the motor with the scaled value.
 func (m *RMCS220xMotor) SetTarget(target int) {
 	m.target = target
 	m.writePosition(int32(m.scalePos(target, true)))
@@ -471,11 +474,11 @@ func (m *RMCS220xMotor) Home(cal int) {
 	return
 }
 
-// GetState provides information on the desired and current position of the motor.
-// This can be used to determine if the motor is currently at its target or is in transit
+// GetState provides information on the desired and Current position of the motor.
+// This can be used to determine if the motor is currently at its Target or is in transit
 func (m *RMCS220xMotor) GetState() (state MotorState) {
-	state.target = m.target
-	state.current = m.GetPosition()
+	state.Target = m.target
+	state.Current = m.GetPosition()
 	return
 }
 
@@ -569,7 +572,7 @@ func (d *Dynastat) SetMotor(name string, position int) (err error) {
 	return nil
 }
 
-// readSensors calls GetState on each sensor to build a dictionary of the current sensor readings.
+// readSensors calls GetState on each sensor to build a dictionary of the Current sensor readings.
 func (d *Dynastat) readSensors() (result map[string]SensorState) {
 	result = make(map[string]SensorState)
 	for name, sensor := range d.sensors {
@@ -578,7 +581,7 @@ func (d *Dynastat) readSensors() (result map[string]SensorState) {
 	return
 }
 
-// readMotors calls GetState on each motor to build a dictionary of the current motor states.
+// readMotors calls GetState on each motor to build a dictionary of the Current motor states.
 func (d *Dynastat) readMotors() (result map[string]MotorState) {
 	result = make(map[string]MotorState)
 	for name, motor := range d.Motors {
@@ -591,5 +594,390 @@ func (d *Dynastat) readMotors() (result map[string]MotorState) {
 func (d *Dynastat) GetState() (result DynastatState) {
 	result.Motors = d.readMotors()
 	result.Sensors = d.readSensors()
+	return
+}
+
+// DecodeMsg implements msgp.Decodable
+func (z *DynastatState) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zsbz uint32
+	zsbz, err = dc.ReadMapHeader()
+	if err != nil {
+		return
+	}
+	for zsbz > 0 {
+		zsbz--
+		field, err = dc.ReadMapKeyPtr()
+		if err != nil {
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "Motors":
+			var zrjx uint32
+			zrjx, err = dc.ReadMapHeader()
+			if err != nil {
+				return
+			}
+			if z.Motors == nil && zrjx > 0 {
+				z.Motors = make(map[string]MotorState, zrjx)
+			} else if len(z.Motors) > 0 {
+				for key, _ := range z.Motors {
+					delete(z.Motors, key)
+				}
+			}
+			for zrjx > 0 {
+				zrjx--
+				var zjpj string
+				var zzpf MotorState
+				zjpj, err = dc.ReadString()
+				if err != nil {
+					return
+				}
+				var zawn uint32
+				zawn, err = dc.ReadMapHeader()
+				if err != nil {
+					return
+				}
+				for zawn > 0 {
+					zawn--
+					field, err = dc.ReadMapKeyPtr()
+					if err != nil {
+						return
+					}
+					switch msgp.UnsafeString(field) {
+					case "Target":
+						zzpf.Target, err = dc.ReadInt()
+						if err != nil {
+							return
+						}
+					case "Current":
+						zzpf.Current, err = dc.ReadInt()
+						if err != nil {
+							return
+						}
+					default:
+						err = dc.Skip()
+						if err != nil {
+							return
+						}
+					}
+				}
+				z.Motors[zjpj] = zzpf
+			}
+		case "Sensors":
+			var zwel uint32
+			zwel, err = dc.ReadMapHeader()
+			if err != nil {
+				return
+			}
+			if z.Sensors == nil && zwel > 0 {
+				z.Sensors = make(map[string]SensorState, zwel)
+			} else if len(z.Sensors) > 0 {
+				for key, _ := range z.Sensors {
+					delete(z.Sensors, key)
+				}
+			}
+			for zwel > 0 {
+				zwel--
+				var zrfe string
+				var zgmo SensorState
+				zrfe, err = dc.ReadString()
+				if err != nil {
+					return
+				}
+				var zrbe uint32
+				zrbe, err = dc.ReadArrayHeader()
+				if err != nil {
+					return
+				}
+				if cap(zgmo) >= int(zrbe) {
+					zgmo = (zgmo)[:zrbe]
+				} else {
+					zgmo = make(SensorState, zrbe)
+				}
+				for ztaf := range zgmo {
+					var zmfd uint32
+					zmfd, err = dc.ReadArrayHeader()
+					if err != nil {
+						return
+					}
+					if cap(zgmo[ztaf]) >= int(zmfd) {
+						zgmo[ztaf] = (zgmo[ztaf])[:zmfd]
+					} else {
+						zgmo[ztaf] = make([]uint8, zmfd)
+					}
+					for zeth := range zgmo[ztaf] {
+						zgmo[ztaf][zeth], err = dc.ReadUint8()
+						if err != nil {
+							return
+						}
+					}
+				}
+				z.Sensors[zrfe] = zgmo
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				return
+			}
+		}
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z *DynastatState) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 2
+	// write "Motors"
+	err = en.Append(0x82, 0xa6, 0x4d, 0x6f, 0x74, 0x6f, 0x72, 0x73)
+	if err != nil {
+		return err
+	}
+	err = en.WriteMapHeader(uint32(len(z.Motors)))
+	if err != nil {
+		return
+	}
+	for zjpj, zzpf := range z.Motors {
+		err = en.WriteString(zjpj)
+		if err != nil {
+			return
+		}
+		// map header, size 2
+		// write "Target"
+		err = en.Append(0x82, 0xa6, 0x54, 0x61, 0x72, 0x67, 0x65, 0x74)
+		if err != nil {
+			return err
+		}
+		err = en.WriteInt(zzpf.Target)
+		if err != nil {
+			return
+		}
+		// write "Current"
+		err = en.Append(0xa7, 0x43, 0x75, 0x72, 0x72, 0x65, 0x6e, 0x74)
+		if err != nil {
+			return err
+		}
+		err = en.WriteInt(zzpf.Current)
+		if err != nil {
+			return
+		}
+	}
+	// write "Sensors"
+	err = en.Append(0xa7, 0x53, 0x65, 0x6e, 0x73, 0x6f, 0x72, 0x73)
+	if err != nil {
+		return err
+	}
+	err = en.WriteMapHeader(uint32(len(z.Sensors)))
+	if err != nil {
+		return
+	}
+	for zrfe, zgmo := range z.Sensors {
+		err = en.WriteString(zrfe)
+		if err != nil {
+			return
+		}
+		err = en.WriteArrayHeader(uint32(len(zgmo)))
+		if err != nil {
+			return
+		}
+		for ztaf := range zgmo {
+			err = en.WriteArrayHeader(uint32(len(zgmo[ztaf])))
+			if err != nil {
+				return
+			}
+			for zeth := range zgmo[ztaf] {
+				err = en.WriteUint8(zgmo[ztaf][zeth])
+				if err != nil {
+					return
+				}
+			}
+		}
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z *DynastatState) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 2
+	// string "Motors"
+	o = append(o, 0x82, 0xa6, 0x4d, 0x6f, 0x74, 0x6f, 0x72, 0x73)
+	o = msgp.AppendMapHeader(o, uint32(len(z.Motors)))
+	for zjpj, zzpf := range z.Motors {
+		o = msgp.AppendString(o, zjpj)
+		// map header, size 2
+		// string "Target"
+		o = append(o, 0x82, 0xa6, 0x54, 0x61, 0x72, 0x67, 0x65, 0x74)
+		o = msgp.AppendInt(o, zzpf.Target)
+		// string "Current"
+		o = append(o, 0xa7, 0x43, 0x75, 0x72, 0x72, 0x65, 0x6e, 0x74)
+		o = msgp.AppendInt(o, zzpf.Current)
+	}
+	// string "Sensors"
+	o = append(o, 0xa7, 0x53, 0x65, 0x6e, 0x73, 0x6f, 0x72, 0x73)
+	o = msgp.AppendMapHeader(o, uint32(len(z.Sensors)))
+	for zrfe, zgmo := range z.Sensors {
+		o = msgp.AppendString(o, zrfe)
+		o = msgp.AppendArrayHeader(o, uint32(len(zgmo)))
+		for ztaf := range zgmo {
+			o = msgp.AppendArrayHeader(o, uint32(len(zgmo[ztaf])))
+			for zeth := range zgmo[ztaf] {
+				o = msgp.AppendUint8(o, zgmo[ztaf][zeth])
+			}
+		}
+	}
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *DynastatState) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zzdc uint32
+	zzdc, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		return
+	}
+	for zzdc > 0 {
+		zzdc--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "Motors":
+			var zelx uint32
+			zelx, bts, err = msgp.ReadMapHeaderBytes(bts)
+			if err != nil {
+				return
+			}
+			if z.Motors == nil && zelx > 0 {
+				z.Motors = make(map[string]MotorState, zelx)
+			} else if len(z.Motors) > 0 {
+				for key, _ := range z.Motors {
+					delete(z.Motors, key)
+				}
+			}
+			for zelx > 0 {
+				var zjpj string
+				var zzpf MotorState
+				zelx--
+				zjpj, bts, err = msgp.ReadStringBytes(bts)
+				if err != nil {
+					return
+				}
+				var zbal uint32
+				zbal, bts, err = msgp.ReadMapHeaderBytes(bts)
+				if err != nil {
+					return
+				}
+				for zbal > 0 {
+					zbal--
+					field, bts, err = msgp.ReadMapKeyZC(bts)
+					if err != nil {
+						return
+					}
+					switch msgp.UnsafeString(field) {
+					case "Target":
+						zzpf.Target, bts, err = msgp.ReadIntBytes(bts)
+						if err != nil {
+							return
+						}
+					case "Current":
+						zzpf.Current, bts, err = msgp.ReadIntBytes(bts)
+						if err != nil {
+							return
+						}
+					default:
+						bts, err = msgp.Skip(bts)
+						if err != nil {
+							return
+						}
+					}
+				}
+				z.Motors[zjpj] = zzpf
+			}
+		case "Sensors":
+			var zjqz uint32
+			zjqz, bts, err = msgp.ReadMapHeaderBytes(bts)
+			if err != nil {
+				return
+			}
+			if z.Sensors == nil && zjqz > 0 {
+				z.Sensors = make(map[string]SensorState, zjqz)
+			} else if len(z.Sensors) > 0 {
+				for key, _ := range z.Sensors {
+					delete(z.Sensors, key)
+				}
+			}
+			for zjqz > 0 {
+				var zrfe string
+				var zgmo SensorState
+				zjqz--
+				zrfe, bts, err = msgp.ReadStringBytes(bts)
+				if err != nil {
+					return
+				}
+				var zkct uint32
+				zkct, bts, err = msgp.ReadArrayHeaderBytes(bts)
+				if err != nil {
+					return
+				}
+				if cap(zgmo) >= int(zkct) {
+					zgmo = (zgmo)[:zkct]
+				} else {
+					zgmo = make(SensorState, zkct)
+				}
+				for ztaf := range zgmo {
+					var ztmt uint32
+					ztmt, bts, err = msgp.ReadArrayHeaderBytes(bts)
+					if err != nil {
+						return
+					}
+					if cap(zgmo[ztaf]) >= int(ztmt) {
+						zgmo[ztaf] = (zgmo[ztaf])[:ztmt]
+					} else {
+						zgmo[ztaf] = make([]uint8, ztmt)
+					}
+					for zeth := range zgmo[ztaf] {
+						zgmo[ztaf][zeth], bts, err = msgp.ReadUint8Bytes(bts)
+						if err != nil {
+							return
+						}
+					}
+				}
+				z.Sensors[zrfe] = zgmo
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *DynastatState) Msgsize() (s int) {
+	s = 1 + 7 + msgp.MapHeaderSize
+	if z.Motors != nil {
+		for zjpj, zzpf := range z.Motors {
+			_ = zzpf
+			s += msgp.StringPrefixSize + len(zjpj) + 1 + 7 + msgp.IntSize + 8 + msgp.IntSize
+		}
+	}
+	s += 8 + msgp.MapHeaderSize
+	if z.Sensors != nil {
+		for zrfe, zgmo := range z.Sensors {
+			_ = zgmo
+			s += msgp.StringPrefixSize + len(zrfe) + msgp.ArrayHeaderSize
+			for ztaf := range zgmo {
+				s += msgp.ArrayHeaderSize + (len(zgmo[ztaf]) * (msgp.Uint8Size))
+			}
+		}
+	}
 	return
 }
