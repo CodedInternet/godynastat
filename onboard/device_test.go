@@ -43,10 +43,10 @@ func (b *MockUARTMCU) Put(i2cAddr int, cmd uint8, value int32) {
 	b.cmd = cmd
 	b.value = value
 }
-func (b *MockUARTMCU) Get(i2cAddr int, cmd uint8) (value int32) {
+func (b *MockUARTMCU) Get(i2cAddr int, cmd uint8) (value int32, err error) {
 	b.i2cAddr = i2cAddr
 	b.cmd = cmd
-	return b.value
+	return b.value, nil
 }
 
 type MockControlI2C struct {
@@ -82,7 +82,7 @@ func (c *MockControlI2C) Get(i2cAddr int, cmd uint16, buf []byte) {
 	if i2cAddr != m_CONTROL_ADDRESS || cmd != m_CONTROL_REG {
 		panic("Incorrect call to the control mcu")
 	}
-	if c.mcu.cmd == m_REG_GOTO && c.mcu.value <= c.trigger {
+	if c.mcu.cmd == m_REG_RELATIVE && c.mcu.value <= c.trigger {
 		binary.BigEndian.PutUint16(buf, c.base-c.control)
 	} else {
 		binary.BigEndian.PutUint16(buf, c.base)
@@ -219,7 +219,7 @@ func TestRMCS220xMotor(t *testing.T) {
 
 			Convey("past home position", func() {
 				mcu.value = 1000
-				mcu.cmd = m_REG_GOTO
+				mcu.cmd = m_REG_RELATIVE // home function uses relative movement, as should our mock version
 				So(motor.readControl(), ShouldBeTrue)
 			})
 		})

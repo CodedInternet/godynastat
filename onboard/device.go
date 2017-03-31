@@ -10,7 +10,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/goburrow/serial"
+	"go.bug.st/serial.v1"
 	"log"
 	"math"
 	"sync"
@@ -31,12 +31,13 @@ const (
 	s_BANK2_COLS  = 8
 
 	// Motor constants
-	m_BITS            = 8
-	m_REG_MAX_SPEED   = 0
-	m_REG_MANUAL      = 1
+	m_BITS          = 8
+	m_REG_MAX_SPEED = 0
+	// m_REG_MANUAL      = 1
 	m_REG_DAMPING     = 2
 	m_REG_POSITION    = 3
 	m_REG_GOTO        = 4
+	m_REG_RELATIVE    = 8
 	m_CONTROL_ADDRESS = 0x20
 	m_CONTROL_REG     = 3
 )
@@ -48,7 +49,7 @@ type UARTMCU struct {
 
 type UARTMCUInterface interface {
 	Put(i2cAddr int, cmd uint8, value int32)
-	Get(i2cAddr int, cmd uint8) (value int32)
+	Get(i2cAddr int, cmd uint8) (value int32, err error)
 }
 
 type I2CBus struct {
@@ -166,10 +167,8 @@ func translateValue(val, leftMin, leftMax, rightMin, rightMax int) int {
 // OpenUARTMCU performs the necessary actions to open a new UART connection on the device.
 // This sets up the UART port for propper communication with the hardware.
 func OpenUARTMCU(ttyName string) *UARTMCU {
-	port, err := serial.Open(&serial.Config{
-		Address:  ttyName,
+	port, err := serial.Open(ttyName, &serial.Mode{
 		BaudRate: 115200,
-		Timeout:  time.Second / 2,
 	})
 
 	if err != nil {
@@ -198,20 +197,22 @@ func (mcu *UARTMCU) Put(i2cAddr int, cmd uint8, value int32) {
 }
 
 // Get returns values from the MCU on the specified registry
-func (mcu *UARTMCU) Get(i2cAddr int, cmd uint8) (value int32) {
+func (mcu *UARTMCU) Get(i2cAddr int, cmd uint8) (value int32, err error) {
 	// Create buffers and format strings outside of cricial section
-	var input []byte
-	buf := fmt.Sprintf("M%d %d", i2cAddr, cmd)
+	wbuf := fmt.Sprintf("M%d %d\n", i2cAddr, cmd)
+	rbuf := make([]byte, 4)
 
 	// Perform read/write in critical section - keep to minimum to prevent excessive locking between threads
 	mcu.lock.Lock()
-	mcu.port.Write([]byte(buf))
-	mcu.port.Read(input)
+	mcu.port.Write([]byte(wbuf))
+	i, err := mcu.port.Read(rbuf)
+	if i == 0 || err != nil {
+		return 0, err
+	}
 	mcu.lock.Unlock()
 
-	// Process response for return
-	fmt.Sscanf(string(input), "%d", value)
-	return value
+	fmt.Sscanf(string(rbuf), "%d", &value)
+	return
 }
 
 // I2C related functions
@@ -411,7 +412,11 @@ func (m *RMCS220xMotor) writePosition(pos int32) {
 
 // readPosition gets the current position from the motors encoder.
 func (m *RMCS220xMotor) readPosition() int32 {
-	return m.bus.Get(m.address, m_REG_POSITION)
+	val, err := m.bus.Get(m.address, m_REG_POSITION)
+	if err != nil {
+		panic(err)
+	}
+	return val
 }
 
 // readControl looks at the control pin for the current motor and determines if it has been pressed.
@@ -445,13 +450,14 @@ func (m *RMCS220xMotor) Home(cal int) {
 	}
 
 	for !m.readControl() {
-		m.writePosition(m.readPosition() + inc)
-		time.Sleep(time.Second / 5)
+		m.bus.Put(m.address, m_REG_RELATIVE, inc)
+		time.Sleep(time.Second / 10)
 	}
 
 	m.bus.Put(m.address, m_REG_POSITION, int32(cal))
 
 	m.writePosition(0)
+	return
 }
 
 // GetState provides information on the desired and current position of the motor.

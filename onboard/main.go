@@ -59,7 +59,8 @@ func main() {
 		Func: func(c *ishell.Context) {
 			name := string(c.Args[0])
 			c.Printf("Homing Motor %s\n", name)
-			dynastat.Motors[name].Home(config.Motors[name].Cal)
+			motor := dynastat.Motors[name]
+			motor.Home(config.Motors[name].Cal)
 		},
 	})
 	shell.AddCmd(&ishell.Cmd{
