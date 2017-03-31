@@ -230,7 +230,7 @@ func OpenI2C(dev string) *I2CBus {
 // ioctl proxy to appropriate syscall method.
 // This is part of our own i2c library
 func ioctl(fd, cmd, arg uintptr) (err error) {
-	_, _, e1 := syscall.Syscall6(syscall.SYS_IOCTL, fd, cmd, arg, 0, 0, 0)
+	_, _, e1 := syscall.Syscall(syscall.SYS_IOCTL, fd, cmd, arg)
 	if e1 != 0 {
 		err = e1
 	}
@@ -239,7 +239,7 @@ func ioctl(fd, cmd, arg uintptr) (err error) {
 
 // Connect send the commands to put the receiving device into slave mode so it can accept commands from the BBB
 func (bus *I2CBus) Connect(i2cAddr int) {
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(bus.fd), i2c_SLAVE, uintptr(i2cAddr)); err != 0 {
+	if err := ioctl(uintptr(bus.fd), i2c_SLAVE, uintptr(i2cAddr)); err != nil {
 		panic(err)
 	}
 	return
@@ -249,7 +249,7 @@ func (bus *I2CBus) Connect(i2cAddr int) {
 // Thread-safe.
 func (bus *I2CBus) Get(i2cAddr int, reg uint16, buf []byte) {
 	// perform bitbashing to get write command first
-	wbuf := make([]byte, len(buf)+2)
+	wbuf := make([]byte, 2)
 	wbuf[0] = byte(reg >> 8 & 0xff)
 	wbuf[1] = byte(reg & 0xff)
 
@@ -418,7 +418,7 @@ func (m *RMCS220xMotor) readPosition() int32 {
 func (m *RMCS220xMotor) readControl() bool {
 	buf := make([]byte, 2)
 	m.controlBus.Get(m_CONTROL_ADDRESS, m_CONTROL_REG, buf)
-	val := binary.LittleEndian.Uint16(buf)
+	val := binary.BigEndian.Uint16(buf)
 	return val&m.control == 0
 }
 
@@ -446,6 +446,7 @@ func (m *RMCS220xMotor) Home(cal int) {
 
 	for !m.readControl() {
 		m.writePosition(m.readPosition() + inc)
+		time.Sleep(time.Second / 5)
 	}
 
 	m.bus.Put(m.address, m_REG_POSITION, int32(cal))

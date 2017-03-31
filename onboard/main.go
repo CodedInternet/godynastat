@@ -58,7 +58,7 @@ func main() {
 		Help: "home <Motor>",
 		Func: func(c *ishell.Context) {
 			name := string(c.Args[0])
-			c.Printf("Homing Motor\n", name)
+			c.Printf("Homing Motor %s\n", name)
 			dynastat.Motors[name].Home(config.Motors[name].Cal)
 		},
 	})

@@ -83,9 +83,9 @@ func (c *MockControlI2C) Get(i2cAddr int, cmd uint16, buf []byte) {
 		panic("Incorrect call to the control mcu")
 	}
 	if c.mcu.cmd == m_REG_GOTO && c.mcu.value <= c.trigger {
-		binary.LittleEndian.PutUint16(buf, c.base-c.control)
+		binary.BigEndian.PutUint16(buf, c.base-c.control)
 	} else {
-		binary.LittleEndian.PutUint16(buf, c.base)
+		binary.BigEndian.PutUint16(buf, c.base)
 	}
 }
 
