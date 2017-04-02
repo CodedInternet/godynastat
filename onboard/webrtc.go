@@ -5,20 +5,36 @@ import (
 	"errors"
 	"fmt"
 	"github.com/keroserene/go-webrtc"
-	"time"
 )
 
 type WebRTCClient struct {
-	pc     *webrtc.PeerConnection
-	tx, rx *webrtc.DataChannel
+	pc        *webrtc.PeerConnection
+	tx, rx    *webrtc.DataChannel
+	conductor ConductorInterface
+}
+
+type Cmd struct {
+	Cmd   string
+	Name  string
+	Value int
+}
+
+type Conductor struct {
+	device  *DynastatInterface
+	clients []WebRTCClient
 }
 
 type ConductorInterface interface {
 	SendSignal(sdp string)
-	ProcessCommand(interface{})
+	ProcessCommand(cmd Cmd)
 }
 
-func NewWebRTCClient(conductor ConductorInterface, device DynastatInterface) (client *WebRTCClient, err error) {
+func NewWebRTCClient(
+	sdp *webrtc.SessionDescription,
+	conductor ConductorInterface) (client *WebRTCClient, err error) {
+
+	client = new(WebRTCClient)
+
 	config := webrtc.NewConfiguration(
 		webrtc.OptionIceServer("stun:stun.l.google.com:19302"),
 	)
@@ -27,6 +43,7 @@ func NewWebRTCClient(conductor ConductorInterface, device DynastatInterface) (cl
 		return
 	}
 
+	// Assign functions
 	client.pc.OnIceComplete = func() {
 		conductor.SendSignal(client.pc.LocalDescription().Serialize())
 	}
@@ -40,6 +57,7 @@ func NewWebRTCClient(conductor ConductorInterface, device DynastatInterface) (cl
 
 		case "control":
 			client.rx = channel
+			client.rx.OnMessage = client.receiveMessage
 			break
 
 		default:
@@ -47,49 +65,28 @@ func NewWebRTCClient(conductor ConductorInterface, device DynastatInterface) (cl
 		}
 	}
 
-	client.rx.OnMessage = func(msg []byte) {
-		var cmd interface{}
-		err := json.Unmarshal(msg, cmd)
-		if err != nil {
-			client.rx.Send([]byte("Error: invalid json"))
-		}
+	client.conductor = conductor
 
-		//f, err := cmd["cmd"]
-		//if err != nil {
-		//	client.rx.Send([]byte("Error: missing cmd key"))
-		//}
-		//
-		//switch f {
-		//case "set_motor":
-		//	name, err := cmd["name"]
-		//	if err != nil {
-		//		client.rx.Send([]byte("Error: missing name"))
-		//	}
-		//	val, err := cmd["value"]
-		//	if err != nil {
-		//		client.rx.Send([]byte("Error: missing value"))
-		//	}
-		//
-		//	device.SetMotor(name, val)
-		//	break
-		//
-		//default:
-		//	client.rx.Send([]byte("Error: unkown command"))
-		//}
+	// establish answer and setup the connection
+	err = client.pc.SetRemoteDescription(sdp)
+	if err != nil {
+		panic(err)
 	}
+	answer, err := client.pc.CreateAnswer()
+	if err != nil {
+		panic(err)
+	}
+	client.pc.SetLocalDescription(answer)
 
 	return
 }
 
-func (client *WebRTCClient) TransmitState(device DynastatInterface) {
-	for {
-		state, err := device.GetState().MarshalMsg(nil)
-		if err != nil {
-			panic(err)
-		}
-
-		client.tx.Send(state)
-
-		time.Sleep(time.Second / FRAMERATE)
+func (client *WebRTCClient) receiveMessage(msg []byte) {
+	var cmd Cmd
+	err := json.Unmarshal(msg, &cmd)
+	if err != nil {
+		client.rx.Send([]byte("Error: invalid json"))
 	}
+
+	client.conductor.ProcessCommand(cmd)
 }
