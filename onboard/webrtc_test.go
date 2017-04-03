@@ -46,7 +46,7 @@ func TestWebRTCClient(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	remote.rx, err = remote.pc.CreateDataChannel("control", webrtc.Init{
+	remote.rx, err = remote.pc.CreateDataChannel("command", webrtc.Init{
 		Ordered:  true,
 		Protocol: "tcp",
 	})

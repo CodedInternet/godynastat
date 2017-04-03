@@ -41,6 +41,15 @@ func main() {
 		panic(fmt.Sprintf("Unable to initialize dynastat: %v", err))
 	}
 
+	conductor := new(Conductor)
+	conductor.device = dynastat
+
+	for _, wsUrl := range config.SignalingServers {
+		conductor.AddSignalingServer(wsUrl)
+	}
+
+	go conductor.UpdateClients()
+
 	shell := ishell.New()
 	shell.Println("Dynastat development shell")
 	shell.AddCmd(&ishell.Cmd{
@@ -68,6 +77,13 @@ func main() {
 		Func: func(c *ishell.Context) {
 			c.Println("Getting state")
 			c.Printf("#v", dynastat.GetState())
+		},
+	})
+	shell.AddCmd(&ishell.Cmd{
+		Name: "offer",
+		Func: func(c *ishell.Context) {
+			offer := string(c.Args[0])
+			conductor.ReceiveOffer(offer)
 		},
 	})
 	shell.Start()
