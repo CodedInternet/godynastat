@@ -7,14 +7,71 @@ i2cbus:
 uart:
   motor: "/dev/ttyS2"
 motors:
-#  right_first_ray:
-#    address: 0x24
+  left_foot_size:
+    address: 0x10
+    cal: -62500
+    low: -60000
+    high: 20000
+    speed: 255
+    damping: 255
+    control: 8
+  left_rearfoot_frontal:
+    address: 0x11
+    cal: -260
+    low: -200
+    high: 200
+    speed: 255
+    damping: 255
+    control: 5
+  left_rearfoot_inclination:
+    address: 0x12
+    cal: -250
+    low: 0
+    high: 400
+    speed: 255
+    damping: 0
+    control: 6
+#  left_forefoot_frontal:
+#    address: 0x13
+#    cal: 362
+#    low: -163
+#    high: 182
+#    speed: 50
+#    damping: 255
+#    control: 2
+#  left_first_ray:
+#    address: 0x14
 #    cal: 700
 #    low: 450
 #    high: 0
 #    speed: 30
 #    damping: 127
 #    control: 1
+
+  right_foot_size:
+    address: 0x20
+    cal: -62500
+    low: -62000
+    high: 20000
+    speed: 255
+    damping: 127
+    control: 7
+  right_rearfoot_frontal:
+    address: 0x21
+    cal: 260 # requires tape to actuate due to micro being too low
+    low: 200
+    high: 200
+    speed: 200
+    damping: 255
+    control: 10
+  right_rearfoot_inclination:
+    address: 0x22
+    cal: 420
+    low: 0
+    high: -500
+    speed: 255
+    damping: 0
+    control: 9
 #  right_forefoot_frontal:
 #    address: 0x23
 #    cal: 362
@@ -23,38 +80,15 @@ motors:
 #    speed: 50
 #    damping: 255
 #    control: 2
-#  right_foot_size:
-#    address: 0x20
-#    cal: -20
-#    low: 0
-#    high: 126000
-#    speed: 255
+#  right_first_ray:
+#    address: 0x24
+#    cal: 700
+#    low: 450
+#    high: 0
+#    speed: 30
 #    damping: 127
-#    control: 7
-#  right_rearfoot_frontal:
-#    address: 0x21
-#    cal: 260 # requires tape to actuate due to micro being too low
-#    low: 200
-#    high: 200
-#    speed: 200
-#    damping: 255
-#    control: 10
-  right_rearfoot_inclination:
-    address: 0x22
-    cal: 420
-    low: 0
-    high: -500
-    speed: 255
-    damping: 255
-    control: 9
-#  left_foot_size:
-#    address: 0x10
-#    cal: -62500
-#    low: -60000
-#    high: 20000
-#    speed: 255
-#    damping: 255
-#    control:
+#    control: 1
+
 sensors:
   left_heel:
     address: 0x15
