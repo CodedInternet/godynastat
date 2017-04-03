@@ -59,8 +59,8 @@ func TestWebRTCClient(t *testing.T) {
 
 	// Generate a mock conductor
 	conductor := new(mockConductor)
-	conductor.tx = make(chan (string))
-	conductor.rx = make(chan (Cmd))
+	conductor.tx = make(chan (string), 1)
+	conductor.rx = make(chan (Cmd), 1)
 
 	Convey("client generatation and answer creation works", t, func() {
 		// Try to create our client
@@ -118,6 +118,25 @@ func TestWebRTCClient(t *testing.T) {
 				})
 			})
 		})
+	})
+
+	Convey("processing commands", t, func() {
+		client := new(WebRTCClient)
+		client.conductor = conductor
+		cmd := new(Cmd)
+		cmd.Cmd = "test"
+		cmd.Name = "processCommand"
+		cmd.Value = 123
+		msg, err := json.Marshal(cmd)
+		if err != nil {
+			panic(err)
+		}
+		client.receiveMessage(msg)
+
+		rxCmd := <-conductor.rx
+		So(rxCmd.Cmd, ShouldEqual, cmd.Cmd)
+		So(rxCmd.Name, ShouldEqual, cmd.Name)
+		So(rxCmd.Value, ShouldEqual, cmd.Value)
 	})
 
 }
