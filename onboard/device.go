@@ -274,6 +274,10 @@ func (bus *I2CBus) Put(i2cAddr int, reg uint16, buf []byte) {
 	wbuf[0] = byte(reg >> 8 & 0xff)
 	wbuf[1] = byte(reg & 0xff)
 
+	for i, b := range buf {
+		wbuf[i+2] = b
+	}
+
 	bus.lock.Lock()
 	bus.Connect(i2cAddr)
 	syscall.Write(bus.fd, wbuf)
@@ -295,6 +299,10 @@ func (sb *SensorBoard) SetMode(mode uint8) {
 	buf := make([]byte, 1)
 	buf[0] = mode
 	sb.i2cBus.Put(sb.address, sb_REG_MODE, buf)
+	sb.i2cBus.Get(sb.address, sb_REG_MODE, buf)
+	if buf[0] != mode {
+		panic(fmt.Sprintf("Setting sensor board mode has not worked 0x%x got %d expected %d", sb.address, buf[0], mode))
+	}
 }
 
 // getValue returns a uint16 from the appropriate reg and +1 to ease with this process
