@@ -120,7 +120,7 @@ func (c *Conductor) UpdateClients() {
 			panic(err)
 		}
 		for _, client := range c.clients {
-			if client.pc.ConnectionState() == webrtc.PeerConnectionStateConnected && client.tx.ReadyState() == webrtc.DataStateOpen {
+			if client.tx != nil && client.tx.ReadyState() == webrtc.DataStateOpen {
 				client.tx.Send(msg)
 			}
 		}
