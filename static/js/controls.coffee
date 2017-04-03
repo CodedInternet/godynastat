@@ -1,5 +1,7 @@
 (($) ->
-  stun_servers = []
+  stun_servers = [
+    'stun.stunprotocol.org'
+  ]
   fps = 0
   count = 0
 
@@ -134,8 +136,9 @@
       requestAnimationFrame(@draw.bind(this))
 
     updateState: (update) ->
-      @updateSensors(update["sensors"])
-      @updateMotors(update["motors"])
+      console.log(update)
+      @updateSensors(update["Sensors"])
+      @updateMotors(update["Motors"])
 
     updateSensors: (update) ->
       for name, sensor of update
@@ -149,8 +152,8 @@
     updateMotors: (update) ->
       for name, motor of update
         id = "#m_#{name}"
-        target = Number motor["target"]
-        current = Number motor["current"]
+        target = Number motor["Target"]
+        current = Number motor["Current"]
 
         $input = $(id)
         $output = $(id+"_current")
