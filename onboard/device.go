@@ -197,6 +197,7 @@ func (mcu *UARTMCU) Put(i2cAddr int, cmd uint8, value int32) {
 
 	// Keep as little processing outside the critical section as possible
 	mcu.lock.Lock()
+	time.Sleep(time.Millisecond) // Give the MCU time to catch up
 	mcu.port.Write([]byte(buf))
 	mcu.lock.Unlock()
 }
@@ -205,16 +206,22 @@ func (mcu *UARTMCU) Put(i2cAddr int, cmd uint8, value int32) {
 func (mcu *UARTMCU) Get(i2cAddr int, cmd uint8) (value int32, err error) {
 	// Create buffers and format strings outside of cricial section
 	wbuf := fmt.Sprintf("M%d %d\n", i2cAddr, cmd)
-	rbuf := make([]byte, 4)
+	rbuf := make([]byte, 18)
 
 	// Perform read/write in critical section - keep to minimum to prevent excessive locking between threads
 	mcu.lock.Lock()
+	time.Sleep(time.Millisecond) // Give the MCU time to catch up
 	mcu.port.Write([]byte(wbuf))
 	i, err := mcu.port.Read(rbuf)
 	if i == 0 || err != nil {
 		return 0, err
 	}
 	mcu.lock.Unlock()
+
+	resp := string(rbuf)
+	if resp == "ERROR NO RESPONSE" {
+		return 0xEEEEEEEE, errors.New("No response from motor")
+	}
 
 	fmt.Sscanf(string(rbuf), "%d", &value)
 	return
