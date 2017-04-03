@@ -307,6 +307,7 @@ func (sb *SensorBoard) SetMode(mode uint8) {
 
 // getValue returns a uint16 from the appropriate reg and +1 to ease with this process
 func (sb *SensorBoard) getValue(reg int) uint16 {
+	reg *= 2 // scale from 16bit to 8 bit
 	return binary.BigEndian.Uint16([]byte{sb.buf[reg], sb.buf[reg+1]})
 }
 
@@ -544,7 +545,7 @@ func NewDynastat(config DynastatConfig) (dynastat *Dynastat, err error) {
 				board = &SensorBoard{
 					dynastat.sensorBus,
 					conf.Address,
-					make([]byte, sb_ROWS*sb_COLS),
+					make([]byte, sb_ROWS*sb_COLS*2),
 				}
 				board.SetMode(conf.Mode)
 				go board.Update()

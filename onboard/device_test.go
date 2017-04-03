@@ -97,13 +97,13 @@ func (c *MockControlI2C) Put(i2cAddr int, cmd uint16, buf []byte) {
 
 func TestSensorBoard(t *testing.T) {
 	msb := &MockI2CSensorBoard{
-		data: make([]byte, sb_ROWS*sb_COLS),
+		data: make([]byte, sb_ROWS*sb_COLS*2),
 		buf:  make([]byte, 1),
 	}
 	sb := &SensorBoard{
 		msb,
 		0,
-		make([]byte, sb_COLS*sb_ROWS),
+		make([]byte, sb_COLS*sb_ROWS*2),
 	}
 	s, _ := NewSensor(sb, 1, false, sb_ROWS, s_BANK1_COLS, 0, 127, 255)
 
@@ -141,10 +141,10 @@ func TestSensorBoard(t *testing.T) {
 		})
 
 		Convey("somewhere in the middle of the array", func() {
-			sb.buf[195] = 0x88
-			sb.buf[196] = 0xff
-			sb.buf[197] = 0xff
-			sb.buf[198] = 0x88
+			sb.buf[391] = 0x88
+			sb.buf[392] = 0xff
+			sb.buf[393] = 0xff
+			sb.buf[394] = 0x88
 			So(s.GetValue(8, 4), ShouldAlmostEqual, 255, 1)
 		})
 
@@ -272,10 +272,10 @@ func TestDynastat(t *testing.T) {
 	motor := new(MockMotor)
 	sb := &SensorBoard{
 		&MockI2CSensorBoard{
-			data: make([]byte, sb_ROWS*sb_COLS),
+			data: make([]byte, sb_ROWS*sb_COLS*2),
 		},
 		0,
-		make([]byte, sb_COLS*sb_ROWS),
+		make([]byte, sb_COLS*sb_ROWS*2),
 	}
 	sensor, _ := NewSensor(sb, 2, true, 2, 4, 0, 127, 255)
 	dynastat := new(Dynastat)
