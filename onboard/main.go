@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/abiosoft/ishell"
 	"gopkg.in/yaml.v2"
@@ -76,7 +77,8 @@ func main() {
 		Name: "state",
 		Func: func(c *ishell.Context) {
 			c.Println("Getting state")
-			c.Printf("#v", dynastat.GetState())
+			state, err := dynastat.GetState()
+			c.Printf("#v #v", state, err)
 		},
 	})
 	shell.AddCmd(&ishell.Cmd{
@@ -84,6 +86,17 @@ func main() {
 		Func: func(c *ishell.Context) {
 			offer := string(c.Args[0])
 			conductor.ReceiveOffer(offer)
+		},
+	})
+	shell.AddCmd(&ishell.Cmd{
+		Name: "control",
+		Func: func(c *ishell.Context) {
+			buf := make([]byte, 2)
+			dynastat.sensorBus.Get(m_CONTROL_ADDRESS, m_CONTROL_REG, buf)
+			val := binary.BigEndian.Uint16(buf)
+			c.Printf("0x%X\n", val)
+
+			c.Printf("Match: #v\n", val&10 == 0)
 		},
 	})
 	shell.Start()

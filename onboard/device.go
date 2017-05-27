@@ -10,8 +10,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/jacobsa/go-serial/serial"
 	"github.com/tinylib/msgp/msgp"
-	"go.bug.st/serial.v1"
+	"io"
 	"log"
 	"math"
 	"sync"
@@ -45,7 +46,7 @@ const (
 )
 
 type UARTMCU struct {
-	port serial.Port
+	port io.ReadWriteCloser
 	lock sync.Mutex
 }
 
@@ -103,9 +104,9 @@ type MotorState struct {
 
 type MotorInterface interface {
 	SetTarget(target int)
-	GetPosition() (position int)
+	GetPosition() (position int, err error)
 	Home(calibrationValue int)
-	GetState() MotorState
+	GetState() (state MotorState, err error)
 }
 
 type Dynastat struct {
@@ -148,7 +149,7 @@ type DynastatState struct {
 }
 
 type DynastatInterface interface {
-	GetState() DynastatState
+	GetState() (DynastatState, error)
 	SetMotor(name string, position int) (err error)
 }
 
@@ -172,8 +173,12 @@ func translateValue(val, leftMin, leftMax, rightMin, rightMax int) int {
 // OpenUARTMCU performs the necessary actions to open a new UART connection on the device.
 // This sets up the UART port for propper communication with the hardware.
 func OpenUARTMCU(ttyName string) *UARTMCU {
-	port, err := serial.Open(ttyName, &serial.Mode{
-		BaudRate: 115200,
+	port, err := serial.Open(serial.OpenOptions{
+		PortName:              ttyName,
+		BaudRate:              115200,
+		DataBits:              8,
+		StopBits:              1,
+		InterCharacterTimeout: 100,
 	})
 
 	if err != nil {
@@ -197,9 +202,8 @@ func (mcu *UARTMCU) Put(i2cAddr int, cmd uint8, value int32) {
 
 	// Keep as little processing outside the critical section as possible
 	mcu.lock.Lock()
-	time.Sleep(time.Millisecond) // Give the MCU time to catch up
+	defer mcu.lock.Unlock()
 	mcu.port.Write([]byte(buf))
-	mcu.lock.Unlock()
 }
 
 // Get returns values from the MCU on the specified registry
@@ -210,17 +214,16 @@ func (mcu *UARTMCU) Get(i2cAddr int, cmd uint8) (value int32, err error) {
 
 	// Perform read/write in critical section - keep to minimum to prevent excessive locking between threads
 	mcu.lock.Lock()
-	time.Sleep(time.Millisecond) // Give the MCU time to catch up
+	defer mcu.lock.Unlock()
 	mcu.port.Write([]byte(wbuf))
 	i, err := mcu.port.Read(rbuf)
 	if i == 0 || err != nil {
 		return 0, err
 	}
-	mcu.lock.Unlock()
 
 	resp := string(rbuf)
 	if resp == "ERROR NO RESPONSE" {
-		return 0xEEEEEEEE, errors.New("No response from motor")
+		return 0xEEEEEEE, errors.New("No response from motor")
 	}
 
 	fmt.Sscanf(string(rbuf), "%d", &value)
@@ -439,12 +442,9 @@ func (m *RMCS220xMotor) writePosition(pos int32) {
 }
 
 // readPosition gets the Current position from the motors encoder.
-func (m *RMCS220xMotor) readPosition() int32 {
-	val, err := m.bus.Get(m.address, m_REG_POSITION)
-	if err != nil {
-		panic(err)
-	}
-	return val
+func (m *RMCS220xMotor) readPosition() (val int32, err error) {
+	val, err = m.bus.Get(m.address, m_REG_POSITION)
+	return
 }
 
 // readControl looks at the control pin for the Current motor and determines if it has been pressed.
@@ -462,16 +462,19 @@ func (m *RMCS220xMotor) SetTarget(target int) {
 }
 
 // GetPosition reads the position from motor and scales it to application range.
-func (m *RMCS220xMotor) GetPosition() int {
-	raw := m.readPosition()
-	return m.scalePos(int(raw), false)
+func (m *RMCS220xMotor) GetPosition() (val int, err error) {
+	raw, err := m.readPosition()
+	if err != nil {
+		return
+	}
+	return m.scalePos(int(raw), false), err
 }
 
 // Home gradually moves the motor until it is pressing its home pin.
 // To avoid crashes being potentially destructive to hardware, this in done in small increments so the motor will not
 // continue unless the software deems it safe and reissues the move command.
 func (m *RMCS220xMotor) Home(cal int) {
-	inc := int32(math.Abs(float64(m.rawHigh-m.rawLow))) / 10
+	inc := int32(math.Abs(float64(m.rawHigh-m.rawLow))) / 2
 	// Invert increment so we go in the right direction
 	if cal < 0 {
 		inc = -inc
@@ -479,22 +482,22 @@ func (m *RMCS220xMotor) Home(cal int) {
 
 	for !m.readControl() {
 		m.bus.Put(m.address, m_REG_RELATIVE, inc)
-		time.Sleep(time.Second / 10)
+		time.Sleep(time.Second / 5)
 	}
 
 	m.bus.Put(m.address, m_REG_POSITION, int32(cal))
 
 	// Sleep to allow the motor to reset the PID to the new encoder position and allow the MCU time to catch up
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond * 10)
 	m.writePosition(0)
 	return
 }
 
 // GetState provides information on the desired and Current position of the motor.
 // This can be used to determine if the motor is currently at its Target or is in transit
-func (m *RMCS220xMotor) GetState() (state MotorState) {
+func (m *RMCS220xMotor) GetState() (state MotorState, err error) {
 	state.Target = m.target
-	state.Current = m.GetPosition()
+	state.Current, err = m.GetPosition()
 	return
 }
 
@@ -598,17 +601,21 @@ func (d *Dynastat) readSensors() (result map[string]SensorState) {
 }
 
 // readMotors calls GetState on each motor to build a dictionary of the Current motor states.
-func (d *Dynastat) readMotors() (result map[string]MotorState) {
+func (d *Dynastat) readMotors() (result map[string]MotorState, err error) {
 	result = make(map[string]MotorState)
 	for name, motor := range d.Motors {
-		result[name] = motor.GetState()
+		state, err := motor.GetState()
+		if err != nil {
+			return nil, err
+		}
+		result[name] = state
 	}
 	return
 }
 
 // GetState builds a complete state of the device including sensor and motor states.
-func (d *Dynastat) GetState() (result DynastatState) {
-	result.Motors = d.readMotors()
+func (d *Dynastat) GetState() (result DynastatState, err error) {
+	result.Motors, err = d.readMotors()
 	result.Sensors = d.readSensors()
 	return
 }

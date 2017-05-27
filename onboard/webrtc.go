@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/keroserene/go-webrtc"
+	"io"
 	"log"
 	"time"
 )
@@ -114,7 +115,16 @@ func (c *Conductor) ProcessCommand(cmd Cmd) {
 
 func (c *Conductor) UpdateClients() {
 	for {
-		state := c.device.GetState()
+		state, err := c.device.GetState()
+		if err != nil {
+			switch err {
+			case io.EOF:
+				fmt.Println("Recieved EOF, continuing")
+				continue
+			default:
+				panic(err)
+			}
+		}
 		msg, err := state.MarshalMsg(nil)
 		if err != nil {
 			panic(err)
