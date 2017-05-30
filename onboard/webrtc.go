@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/keroserene/go-webrtc"
+	"gopkg.in/yaml.v2"
 	"io"
+	"io/ioutil"
 	"log"
 	"time"
 )
@@ -106,6 +108,25 @@ func (c *Conductor) ProcessCommand(cmd Cmd) {
 	switch cmd.Cmd {
 	case "set_motor":
 		c.device.SetMotor(cmd.Name, cmd.Value)
+		break
+
+	case "motor_goto_raw":
+		c.device.GotoMotorRaw(cmd.Name, cmd.Value)
+		break
+
+	case "motor_write_raw":
+		c.device.WriteMotorRaw(cmd.Name, cmd.Value)
+		break
+
+	case "motor_record_home":
+		reverse := cmd.Value != 0
+		c.device.RecordMotorHome(cmd.Name, reverse)
+		break
+
+	case "persist_config":
+		filename, _ := yamlFilename()
+		yml, _ := yaml.Marshal(c.device.GetConfig())
+		ioutil.WriteFile(filename, yml, 0744)
 		break
 
 	default:

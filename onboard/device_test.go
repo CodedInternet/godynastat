@@ -71,13 +71,25 @@ func (m *MockMotor) GetPosition() (int, error) {
 }
 
 func (m *MockMotor) Home(_ int) {
-	panic("MockMotor panic")
+	panic("MockMotor does not implement Home")
+}
+
+func (m *MockMotor) findHome(_ bool) {
+	panic("MockMotor does not implement findHome")
 }
 
 func (m *MockMotor) GetState() (state MotorState, err error) {
 	state.Target = m.target
 	state.Current = m.target
 	return
+}
+
+func (m *MockMotor) getRaw(_ uint8) (_ int, _ error) {
+	panic("MockMotor does not implement raw getters and setters")
+}
+
+func (m *MockMotor) putRaw(_ uint8, _ int) {
+	panic("MockMotor does not implement raw getters and setters")
 }
 
 func (c *MockControlI2C) Get(i2cAddr int, cmd uint16, buf []byte) {

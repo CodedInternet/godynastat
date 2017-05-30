@@ -11,15 +11,19 @@ import (
 	"strconv"
 )
 
-func main() {
-	var filename string
-	var err error
+func yamlFilename() (filename string, err error) {
 	if os.Getenv("RESIN") == "1" {
 		println("Running on resin")
-		filename = "/go/bbb_config.yaml"
+		filename = "/data/bbb_config.yaml"
 	} else {
 		filename, err = filepath.Abs("./bbb_config.yaml")
 	}
+
+	return
+}
+
+func main() {
+	filename, err := yamlFilename()
 	if err != nil {
 		panic(fmt.Sprintf("Unable to find file: %v", err))
 	}
@@ -37,7 +41,7 @@ func main() {
 
 	var dynastat *Dynastat
 	fmt.Printf("Establishing device with config %#v\n", config)
-	dynastat, err = NewDynastat(config)
+	dynastat, err = NewDynastat(&config)
 	if err != nil {
 		panic(fmt.Sprintf("Unable to initialize dynastat: %v", err))
 	}
