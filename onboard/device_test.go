@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/tinylib/msgp/msgp"
+	"sync"
 	"testing"
 	"time"
 )
@@ -22,9 +23,8 @@ type MockI2CSensorBoard struct {
 }
 
 func (s *MockI2CSensorBoard) Get(i2cAddr int, cmd uint16, buf []byte) {
-	for i := range s.data {
+	for i := range buf {
 		buf[i] = s.data[i]
-		s.data[i]++
 	}
 }
 
@@ -166,21 +166,82 @@ func TestSensorBoard(t *testing.T) {
 	})
 
 	Convey("Updater fetches new data", t, func() {
+		quit := make(chan bool)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			ticker := time.NewTicker(time.Second / 2)
+			for {
+				select {
+				case <-quit:
+					ticker.Stop()
+					wg.Done()
+					break
+				case <-ticker.C:
+					for i := range msb.data {
+						msb.data[i]++
+					}
+				}
+			}
+		}()
+
 		go sb.Update()              // start updater
 		time.Sleep(time.Second * 1) // Wait some time
 		start := s.GetValue(0, 0)
 		time.Sleep(time.Second * 1) // Wait some time
 		So(s.GetValue(0, 0), ShouldBeGreaterThan, start)
+
+		// tidy up update goroutine
+		quit <- true
+		wg.Wait()
 	})
 
-	SkipConvey("set address send the correct data", t, func() {
+	Convey("set address sends the correct data", t, func() {
 		sb.address = 0x21
-		msb.buf[0] = 0xFF
-		msb.buf[1] = 0x20
+		msb.data[0] = 0x21
 		sb.changeAddress(0x22)
 		So(msb.putAddr, ShouldEqual, 0x21)
 		So(msb.putCmd, ShouldEqual, sb_REG_ADDR)
 		So(msb.buf[0], ShouldEqual, 0x22)
+
+		Convey("New Address is out of range", func() {
+			var err error
+			msb.buf[0] = 0x12
+			err = sb.changeAddress(-0x01)
+			So(err, ShouldNotBeNil)
+			So(msb.buf[0], ShouldEqual, 0x12)
+			err = sb.changeAddress(0x80)
+			So(err, ShouldNotBeNil)
+			So(msb.buf[0], ShouldEqual, 0x12)
+		})
+
+		Convey("Current address from board doesn't match stored address", func() {
+			var err error
+			sb.address = 0x21
+			msb.data[0] = 0x22
+			msb.buf[0] = 0x12
+			err = sb.changeAddress(0x34)
+			So(err, ShouldNotBeNil)
+			So(msb.buf[0], ShouldEqual, 0x12)
+		})
+	})
+
+	Convey("Setting mode sends the correct data", t, func() {
+		sb.address = 0x21
+		msb.data[0] = 0x12
+		sb.SetMode(0x12)
+		So(msb.putAddr, ShouldEqual, sb.address)
+		So(msb.putCmd, ShouldEqual, sb_REG_MODE)
+		So(msb.buf[0], ShouldEqual, 0x12)
+
+		Convey("Should panic without the readback", func() {
+			So(func() { sb.SetMode(0x13) }, ShouldPanic)
+		})
+	})
+
+	Convey("NewSensor constructor handles unknown reg mode", t, func() {
+		_, err := NewSensor(sb, 0, false, sb_ROWS, s_BANK1_COLS, 0, 127, 255)
+		So(err, ShouldNotBeNil)
 	})
 }
 
@@ -274,6 +335,15 @@ func TestRMCS220xMotor(t *testing.T) {
 			mcu.value = int32(motor.rawHigh * 2)
 			pos, _ = motor.GetPosition()
 			So(pos, ShouldEqual, 255)
+		})
+
+		Convey("current state returns the expected values", func() {
+			mcu.value = int32(motor.rawHigh)
+			motor.target = 123
+			state, err := motor.GetState()
+			So(err, ShouldBeNil)
+			So(state.Target, ShouldEqual, 123)
+			So(state.Current, ShouldEqual, 255)
 		})
 	})
 

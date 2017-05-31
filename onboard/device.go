@@ -13,7 +13,6 @@ import (
 	"github.com/jacobsa/go-serial/serial"
 	"github.com/tinylib/msgp/msgp"
 	"io"
-	"log"
 	"math"
 	"sync"
 	"syscall"
@@ -333,10 +332,9 @@ func (sb *SensorBoard) getValue(reg int) uint16 {
 
 // changeAddress updates the address register on the sensor board.
 // This update to the hardware requires a reboot of the sensor board.
-func (sb *SensorBoard) changeAddress(newAddr int) {
+func (sb *SensorBoard) changeAddress(newAddr int) error {
 	if newAddr < 0x00 || newAddr > 0x7f {
-		log.Fatalf("Invalid address: %x", newAddr)
-		return
+		return errors.New(fmt.Sprintf("Invalid address: %x", newAddr))
 	}
 
 	// Read old address to sanity check
@@ -345,11 +343,13 @@ func (sb *SensorBoard) changeAddress(newAddr int) {
 	oldAddr := int(buf[0])
 
 	if oldAddr != sb.address {
-		log.Fatalf("Stored address %x does not match Current device %x", oldAddr, sb.address)
+		return errors.New(fmt.Sprintf("Stored address %x does not match Current device %x", oldAddr, sb.address))
 	}
 
 	buf[0] = byte(newAddr)
 	sb.i2cBus.Put(sb.address, sb_REG_ADDR, buf)
+
+	return nil
 }
 
 // NewSensor provides an individual sensor on the given sensor board.
@@ -649,6 +649,18 @@ func (d *Dynastat) RecordMotorLow(name string) (err error) {
 	conf := d.config.Motors[name]
 	conf.Low = pos
 
+	// recreate the motor with new values
+	motor = NewRMCS220xMotor(
+		d.motorBus,
+		d.sensorBus,
+		conf.Control,
+		conf.Address,
+		conf.Low,
+		conf.High,
+		conf.Speed,
+		conf.Damping,
+	)
+
 	return nil
 }
 
@@ -666,6 +678,18 @@ func (d *Dynastat) RecordMotorHigh(name string) (err error) {
 	// update the config
 	conf := d.config.Motors[name]
 	conf.High = pos
+
+	// recreate the motor with new values
+	motor = NewRMCS220xMotor(
+		d.motorBus,
+		d.sensorBus,
+		conf.Control,
+		conf.Address,
+		conf.Low,
+		conf.High,
+		conf.Speed,
+		conf.Damping,
+	)
 
 	return nil
 }
@@ -686,6 +710,18 @@ func (d *Dynastat) RecordMotorHome(name string, reverse bool) (err error) {
 	// update the config
 	conf := d.config.Motors[name]
 	conf.Cal = pos
+
+	// recreate the motor with new values
+	motor = NewRMCS220xMotor(
+		d.motorBus,
+		d.sensorBus,
+		conf.Control,
+		conf.Address,
+		conf.Low,
+		conf.High,
+		conf.Speed,
+		conf.Damping,
+	)
 
 	// reset to a sensible position
 	motor.Home(pos)
