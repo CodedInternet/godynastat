@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"./signaling"
 	"html/template"
 	"github.com/gorilla/mux"
+	"github.com/CodedInternet/godynastat/signaling"
 )
 
 var Table [10][16]int
