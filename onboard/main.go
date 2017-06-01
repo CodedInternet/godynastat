@@ -103,5 +103,93 @@ func main() {
 			c.Printf("Match: #v\n", val&10 == 0)
 		},
 	})
+
+	{
+		motorNames := func([]string) []string {
+			keys := make([]string, len(dynastat.Motors))
+			for k := range dynastat.Motors {
+				keys = append(keys, k)
+			}
+			return keys
+		}
+
+		calCmd := &ishell.Cmd{
+			Name: "cal",
+			Help: "calibrate a motor",
+		}
+
+		calCmd.AddCmd(&ishell.Cmd{
+			Name:      "move",
+			Help:      "Move a motor to a specified absolute value",
+			Completer: motorNames,
+			Func: func(c *ishell.Context) {
+				name := c.Args[0]
+				position, _ := strconv.Atoi(c.Args[1])
+
+				dynastat.GotoMotorRaw(name, position)
+			},
+		})
+
+		calCmd.AddCmd(&ishell.Cmd{
+			Name:      "write",
+			Help:      "Write the current absolute value for a motor",
+			Completer: motorNames,
+			Func: func(c *ishell.Context) {
+				name := c.Args[0]
+				position, _ := strconv.Atoi(c.Args[1])
+
+				dynastat.WriteMotorRaw(name, position)
+			},
+		})
+
+		calCmd.AddCmd(&ishell.Cmd{
+			Name:      "low",
+			Help:      "Set the current position as the low value for a motor",
+			Completer: motorNames,
+			Func: func(c *ishell.Context) {
+				name := c.Args[0]
+				dynastat.RecordMotorLow(name)
+			},
+		})
+		calCmd.AddCmd(&ishell.Cmd{
+			Name:      "high",
+			Help:      "Set the current position as the high value for a motor",
+			Completer: motorNames,
+			Func: func(c *ishell.Context) {
+				name := c.Args[0]
+				dynastat.RecordMotorHigh(name)
+			},
+		})
+
+		calCmd.AddCmd(&ishell.Cmd{
+			Name:      "home",
+			Help:      "Locate the home position and record the value in the config",
+			Completer: motorNames,
+			Func: func(c *ishell.Context) {
+				name := c.Args[0]
+				reverse, _ := strconv.ParseBool(c.Args[1])
+
+				c.ProgressBar().Indeterminate(true)
+				c.ProgressBar().Start()
+
+				dynastat.RecordMotorHome(name, reverse)
+
+				c.ProgressBar().Stop()
+			},
+		})
+
+		calCmd.AddCmd(&ishell.Cmd{
+			Name: "commit",
+			Help: "Commit the current config to disk",
+			Func: func(c *ishell.Context) {
+				filename, _ := yamlFilename()
+				yml, _ := yaml.Marshal(dynastat.GetConfig())
+				ioutil.WriteFile(filename, yml, 0744)
+			},
+		})
+
+		shell.AddCmd(calCmd)
+	}
+
 	shell.Start()
 }
