@@ -43,16 +43,12 @@ func init() {
 		}
 	}
 
-	db, err := storm.Open(dbFile)
+	db, err := openDb(dbFile)
 	if err != nil {
 		panic(err)
 	}
 	ENV.DB = db
-
-	// call inits for each type
-	if err := ENV.DB.Init(&User{}); err != nil {
-		panic(err)
-	}
+	return
 }
 
 func main() {
@@ -147,4 +143,18 @@ func main() {
 	if err := http.ListenAndServe(port, r); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func openDb(dbFile string) (db *storm.DB, err error) {
+	db, err = storm.Open(dbFile)
+	if err != nil {
+		return
+	}
+
+	// call inits for each type
+	if err := db.Init(&User{}); err != nil {
+		return nil, err
+	}
+
+	return
 }

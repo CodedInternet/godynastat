@@ -32,10 +32,7 @@ type User struct {
 
 // Sets the User.Password to the hashed value for the provided plain text
 func (u *User) SetPassword(pass []byte) {
-	hash, err := bcrypt.GenerateFromPassword(pass, bcrypt.DefaultCost)
-	if err != nil {
-		panic(err)
-	}
+	hash, _ := bcrypt.GenerateFromPassword(pass, bcrypt.DefaultCost)
 	u.Password = string(hash)
 }
 
