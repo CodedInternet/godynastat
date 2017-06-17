@@ -116,10 +116,15 @@ func TestLogin(t *testing.T) {
 		})
 	})
 
-	SkipConvey("Server errors render nicely", t, func() {
-		Convey("Password is broken", func() {
-			user.Password = "I DON'T WORK"
-			ENV.DB.Save(user)
+	Convey("Server errors render nicely", t, func() {
+		SkipConvey("Password is broken", func() {
+			pass := "I DON'T WORK"
+			ENV.DB.One("Email", user.Email, &user)
+			user.Password = pass
+			//ENV.DB.Save(user)
+
+			ENV.DB.Find("Email", user.Email, &user)
+			So(user.Password, ShouldEqual, pass)
 
 			lp := &LoginPayload{
 				Email:    "login@test.case",
