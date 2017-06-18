@@ -1,4 +1,4 @@
-package main
+package onboard
 
 import (
 	"encoding/json"
@@ -9,7 +9,6 @@ import (
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
-	"log"
 	"time"
 )
 
@@ -26,19 +25,19 @@ type Cmd struct {
 }
 
 type Conductor struct {
-	device           DynastatInterface
+	Device           DynastatInterface
 	clients          []*WebRTCClient
 	signalingServers []*websocket.Conn
 }
 
 type ConductorInterface interface {
-	SendSignal(sdp string)
 	ProcessCommand(cmd Cmd)
 }
 
 func NewWebRTCClient(
 	sdp *webrtc.SessionDescription,
-	conductor ConductorInterface) (client *WebRTCClient, err error) {
+	conductor ConductorInterface,
+	signals <-chan string) (client *WebRTCClient, err error) {
 
 	client = new(WebRTCClient)
 
@@ -51,8 +50,11 @@ func NewWebRTCClient(
 	}
 
 	// Assign functions
+	client.pc.OnIceCandidate = func(c webrtc.IceCandidate) {
+		signals <- c.Serialize()
+	}
 	client.pc.OnIceComplete = func() {
-		conductor.SendSignal(client.pc.LocalDescription().Serialize())
+		signals <- client.pc.LocalDescription().Serialize()
 	}
 
 	client.pc.OnDataChannel = func(channel *webrtc.DataChannel) {
@@ -98,34 +100,28 @@ func (client *WebRTCClient) receiveMessage(msg []byte) {
 	client.conductor.ProcessCommand(cmd)
 }
 
-func (c *Conductor) SendSignal(msg string) {
-	for _, server := range c.signalingServers {
-		server.WriteMessage(websocket.TextMessage, []byte(msg))
-	}
-}
-
 func (c *Conductor) ProcessCommand(cmd Cmd) {
 	switch cmd.Cmd {
 	case "set_motor":
-		c.device.SetMotor(cmd.Name, cmd.Value)
+		c.Device.SetMotor(cmd.Name, cmd.Value)
 		break
 
 	case "motor_goto_raw":
-		c.device.GotoMotorRaw(cmd.Name, cmd.Value)
+		c.Device.GotoMotorRaw(cmd.Name, cmd.Value)
 		break
 
 	case "motor_write_raw":
-		c.device.WriteMotorRaw(cmd.Name, cmd.Value)
+		c.Device.WriteMotorRaw(cmd.Name, cmd.Value)
 		break
 
 	case "motor_record_home":
 		reverse := cmd.Value != 0
-		c.device.RecordMotorHome(cmd.Name, reverse)
+		c.Device.RecordMotorHome(cmd.Name, reverse)
 		break
 
 	case "persist_config":
 		filename, _ := yamlFilename()
-		yml, _ := yaml.Marshal(c.device.GetConfig())
+		yml, _ := yaml.Marshal(c.Device.GetConfig())
 		ioutil.WriteFile(filename, yml, 0744)
 		break
 
@@ -136,7 +132,7 @@ func (c *Conductor) ProcessCommand(cmd Cmd) {
 
 func (c *Conductor) UpdateClients() {
 	for {
-		state, err := c.device.GetState()
+		state, err := c.Device.GetState()
 		if err != nil {
 			switch err {
 			case io.EOF:
@@ -160,34 +156,39 @@ func (c *Conductor) UpdateClients() {
 	}
 }
 
-func (c *Conductor) ReceiveOffer(msg string) (client *WebRTCClient, err error) {
+func (c *Conductor) ReceiveOffer(msg string, signals <-chan string) (client *WebRTCClient, err error) {
 	sdp := webrtc.DeserializeSessionDescription(msg)
 	switch sdp.Type {
 	case "offer":
-		client, err = NewWebRTCClient(sdp, ConductorInterface(c))
+		signals <- "recieved offer"
+		client, err = NewWebRTCClient(sdp, ConductorInterface(c), signals)
+		if err != nil {
+			panic(err)
+			return nil, err
+		}
 		c.clients = append(c.clients, client)
 		return
 	}
 	return nil, errors.New("offer was not of type offer")
 }
 
-func (c *Conductor) AddSignalingServer(wsUrl string) (server *websocket.Conn, err error) {
-	server, _, err = websocket.DefaultDialer.Dial(wsUrl, nil)
-	c.signalingServers = append(c.signalingServers, server)
-
-	go func() {
-		for {
-			_, message, err := server.ReadMessage()
-			if err != nil {
-				log.Println("error:", err)
-			}
-			log.Printf("recv: %s\n", message)
-			_, err = c.ReceiveOffer(string(message))
-			if err != nil {
-				log.Println("error:", err)
-			}
-		}
-	}()
-
-	return
-}
+//func (c *Conductor) AddSignalingServer(wsUrl string) (server *websocket.Conn, err error) {
+//	server, _, err = websocket.DefaultDialer.Dial(wsUrl, nil)
+//	c.signalingServers = append(c.signalingServers, server)
+//
+//	go func() {
+//		for {
+//			_, message, err := server.ReadMessage()
+//			if err != nil {
+//				log.Println("error:", err)
+//			}
+//			log.Printf("recv: %s\n", message)
+//			_, err = c.ReceiveOffer(string(message))
+//			if err != nil {
+//				log.Println("error:", err)
+//			}
+//		}
+//	}()
+//
+//	return
+//}

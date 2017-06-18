@@ -1,12 +1,12 @@
 var pc_config = {"iceServers": [{"url": "stun:stun.stunprotocol.prg"}]};
-var wsuri = "ws://127.0.0.1:8000/ws/device/test/";
+var wsuri = "ws://127.0.0.1:8000/ws/signaling";
 
 var pc = new webkitRTCPeerConnection(pc_config);
 
 var dcOptions = {
     ordered: true,
     reliable: false
-}
+};
 
 var sensor_map = [];
 
@@ -23,13 +23,13 @@ pc.onicecandidate = function(event) {
         //pc.setLocalDescription(pc.localDescription)
         //console.log(JSON.stringify(pc.localDescription))
     }
-}
+};
 
 pc.icegatheringstatechange = function(event) {
     if(pc.iceGatheringState == "complete") {
         console.log(JSON.stringify(pc.localDescription))
     }
-}
+};
 
 var dc = pc.createDataChannel('data', dcOptions);
 
@@ -43,13 +43,13 @@ dc.onmessage = function(event) {
                 if(!sensor_map.hasOwnProperty(id)) {
                     sensor_map[id] = $("#" + id);
                 }
-                var hue = 255 - sensor[row][col];;
+                var hue = 255 - sensor[row][col];
                 sensor_map[id].css("background", "hsl("+ hue +", 80%, 50%)");
             }
         }
     }
     frames++;
-}
+};
 
 dc.onclose = function () {
     console.log("The Data Channel is Closed");
@@ -86,7 +86,7 @@ function openRtc() {
         getOffer(doSend)
     };
     websocket.onmessage = function(evt) {
-        jmessage = JSON.parse(evt.data)
+        jmessage = JSON.parse(evt.data);
         console.log(jmessage);
         if (jmessage.type = "answer") {
             gotSignal(jmessage);

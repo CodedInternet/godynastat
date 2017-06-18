@@ -1,24 +1,24 @@
 package signaling
 
 import (
-	"github.com/gorilla/websocket"
-	"net/http"
-	"log"
-	"github.com/gorilla/mux"
-	"gopkg.in/redis.v3"
 	"encoding/json"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+	"gopkg.in/redis.v3"
+	"log"
+	"net/http"
 	"os"
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:        1024,
-	WriteBufferSize:    1024,
-	CheckOrigin:        func(r *http.Request) bool { return true },
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
 var (
 	redisClient *redis.Client
-	logger *log.Logger
+	logger      *log.Logger
 )
 
 func EchoHandler(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +51,7 @@ func PubSubHandler(conn *websocket.Conn, pubsubClient *redis.PubSub) {
 			return
 		}
 
-		switch msg := interface{} (msgi).(type) {
+		switch msg := interface{}(msgi).(type) {
 		case *redis.Message:
 			var json_blob interface{}
 			bytes_blob := []byte(msg.Payload)
@@ -113,7 +113,7 @@ func DeviceHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func Handler() http.Handler {
-	logger = log.New(os.Stdout, "[signaling] ", log.Ldate | log.Ltime | log.Lshortfile)
+	logger = log.New(os.Stdout, "[_signaling] ", log.Ldate|log.Ltime|log.Lshortfile)
 
 	redisClient = redis.NewClient(&redis.Options{
 		Addr: "192.168.99.100:6379",

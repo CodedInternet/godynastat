@@ -336,7 +336,7 @@
     return $(function() {
       var conductor, signal_socket, update_fps;
       load_stun();
-      signal_socket = new SignalingSocket("ws://" + document.location.host + "/ws/device/test/");
+        signal_socket = new SignalingSocket("ws://" + document.location.host + "/ws/signal");
       conductor = new Conductor(signal_socket);
       $.conductor = conductor;
       $('#connect').on('click', (function(_this) {

@@ -1,4 +1,4 @@
-package main
+package onboard
 
 import (
 	"encoding/binary"
@@ -46,14 +46,14 @@ func main() {
 		panic(fmt.Sprintf("Unable to initialize dynastat: %v", err))
 	}
 
-	conductor := new(Conductor)
-	conductor.device = dynastat
-
-	for _, wsUrl := range config.SignalingServers {
-		conductor.AddSignalingServer(wsUrl)
-	}
-
-	go conductor.UpdateClients()
+	//conductor := new(Conductor)
+	//conductor.device = dynastat
+	//
+	//for _, wsUrl := range config.SignalingServers {
+	//	conductor.AddSignalingServer(wsUrl)
+	//}
+	//
+	//go conductor.UpdateClients()
 
 	shell := ishell.New()
 	shell.Println("Dynastat development shell")
@@ -85,13 +85,13 @@ func main() {
 			c.Printf("#v #v", state, err)
 		},
 	})
-	shell.AddCmd(&ishell.Cmd{
-		Name: "offer",
-		Func: func(c *ishell.Context) {
-			offer := string(c.Args[0])
-			conductor.ReceiveOffer(offer)
-		},
-	})
+	//shell.AddCmd(&ishell.Cmd{
+	//	Name: "offer",
+	//	Func: func(c *ishell.Context) {
+	//		offer := string(c.Args[0])
+	//		conductor.ReceiveOffer(offer)
+	//	},
+	//})
 	shell.AddCmd(&ishell.Cmd{
 		Name: "control",
 		Func: func(c *ishell.Context) {

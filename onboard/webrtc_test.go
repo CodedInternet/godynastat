@@ -1,9 +1,8 @@
-package main
+package onboard
 
 import (
 	"encoding/json"
 	"github.com/keroserene/go-webrtc"
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 	"time"
 )
@@ -61,10 +60,11 @@ func TestWebRTCClient(t *testing.T) {
 	conductor := new(mockConductor)
 	conductor.tx = make(chan (string), 1)
 	conductor.rx = make(chan (Cmd), 1)
+	signals := make(chan (string), 1)
 
 	Convey("client generatation and answer creation works", t, func() {
 		// Try to create our client
-		client, err := NewWebRTCClient(offer, conductor)
+		client, err := NewWebRTCClient(offer, conductor, signals)
 		So(err, ShouldBeNil)
 		So(client, ShouldNotBeNil)
 

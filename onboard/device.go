@@ -4,7 +4,7 @@
 	A set of features related directly to the interaction with the device hardware.
 */
 
-package main
+package onboard
 
 import (
 	"encoding/binary"
@@ -787,7 +787,7 @@ func (z *DynastatState) DecodeMsg(dc *msgp.Reader) (err error) {
 			if z.Motors == nil && zrjx > 0 {
 				z.Motors = make(map[string]MotorState, zrjx)
 			} else if len(z.Motors) > 0 {
-				for key, _ := range z.Motors {
+				for key := range z.Motors {
 					delete(z.Motors, key)
 				}
 			}
@@ -839,7 +839,7 @@ func (z *DynastatState) DecodeMsg(dc *msgp.Reader) (err error) {
 			if z.Sensors == nil && zwel > 0 {
 				z.Sensors = make(map[string]SensorState, zwel)
 			} else if len(z.Sensors) > 0 {
-				for key, _ := range z.Sensors {
+				for key := range z.Sensors {
 					delete(z.Sensors, key)
 				}
 			}
@@ -1020,7 +1020,7 @@ func (z *DynastatState) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			if z.Motors == nil && zelx > 0 {
 				z.Motors = make(map[string]MotorState, zelx)
 			} else if len(z.Motors) > 0 {
-				for key, _ := range z.Motors {
+				for key := range z.Motors {
 					delete(z.Motors, key)
 				}
 			}
@@ -1072,7 +1072,7 @@ func (z *DynastatState) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			if z.Sensors == nil && zjqz > 0 {
 				z.Sensors = make(map[string]SensorState, zjqz)
 			} else if len(z.Sensors) > 0 {
-				for key, _ := range z.Sensors {
+				for key := range z.Sensors {
 					delete(z.Sensors, key)
 				}
 			}

@@ -14,7 +14,7 @@ go install
 
 echo "Copying config etc"
 cp bbb_config.yaml /data/
-cp run.sh $GOPATH/
+cp run.sh bbb_config.yaml $GOPATH/
 
 #echo "Cleaning up"
 popd # revert back to wherever we were before

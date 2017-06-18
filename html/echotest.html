@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>godynastat WS Echo Test</title>
+</head>
+<body>
+
+<script>
+    var ws = new WebSocket("ws://" + window.location.host + "/ws/echo");
+    ws.onmessage = function (m) {
+        console.log(m);
+    }
+</script>
+</body>
+</html>
