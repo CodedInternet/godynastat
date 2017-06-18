@@ -51,6 +51,9 @@ func NewWebRTCClient(
 	}
 
 	// Assign functions
+	client.pc.OnIceCandidate = func(c webrtc.IceCandidate) {
+		conductor.SendSignal(c.Serialize())
+	}
 	client.pc.OnIceComplete = func() {
 		conductor.SendSignal(client.pc.LocalDescription().Serialize())
 	}
@@ -79,11 +82,15 @@ func NewWebRTCClient(
 	if err != nil {
 		panic(err)
 	}
-	answer, err := client.pc.CreateAnswer()
-	if err != nil {
-		panic(err)
-	}
-	client.pc.SetLocalDescription(answer)
+	go func() {
+		answer, err := client.pc.CreateAnswer()
+		if err != nil {
+			panic(err)
+		}
+		client.pc.SetLocalDescription(answer)
+		conductor.SendSignal(answer.Serialize())
+		return
+	}()
 
 	return
 }
@@ -162,11 +169,13 @@ func (c *Conductor) UpdateClients() {
 
 func (c *Conductor) ReceiveOffer(msg string) (client *WebRTCClient, err error) {
 	sdp := webrtc.DeserializeSessionDescription(msg)
-	switch sdp.Type {
-	case "offer":
-		client, err = NewWebRTCClient(sdp, ConductorInterface(c))
-		c.clients = append(c.clients, client)
-		return
+	if sdp != nil {
+		switch sdp.Type {
+		case "offer":
+			client, err = NewWebRTCClient(sdp, ConductorInterface(c))
+			c.clients = append(c.clients, client)
+			return
+		}
 	}
 	return nil, errors.New("offer was not of type offer")
 }

@@ -217,9 +217,12 @@
 
     onssmessage: (event) ->
       message = JSON.parse(event.data)
+      console.log(message)
       if (message.type == "answer")
         @pc.setRemoteDescription new RTCSessionDescription(message), (event) =>
           $('.m_input').removeAttr 'disabled'
+      else if (message.candidate)
+        @pc.addIceCandidate(new RTCIceCandidate(message))
 
     setmotor: (name, value) ->
       json = JSON.stringify {"cmd": "set_motor", "name": name, "value", value}

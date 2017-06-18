@@ -301,12 +301,15 @@
       Conductor.prototype.onssmessage = function(event) {
         var message;
         message = JSON.parse(event.data);
+          console.log(message);
         if (message.type === "answer") {
           return this.pc.setRemoteDescription(new RTCSessionDescription(message), (function(_this) {
             return function(event) {
               return $('.m_input').removeAttr('disabled');
             };
           })(this));
+        } else if (message.candidate) {
+            return this.pc.addIceCandidate(new RTCIceCandidate(message));
         }
       };
 

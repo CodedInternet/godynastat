@@ -191,5 +191,5 @@ func main() {
 		shell.AddCmd(calCmd)
 	}
 
-	shell.Start()
+	shell.Run()
 }
