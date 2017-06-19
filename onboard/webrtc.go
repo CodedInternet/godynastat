@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/keroserene/go-webrtc"
-	"gopkg.in/yaml.v2"
 	"io"
-	"io/ioutil"
 	"time"
 )
 
@@ -37,7 +35,7 @@ type ConductorInterface interface {
 func NewWebRTCClient(
 	sdp *webrtc.SessionDescription,
 	conductor ConductorInterface,
-	signals chan <- string) (client *WebRTCClient, err error) {
+	signals chan<- string) (client *WebRTCClient, err error) {
 
 	client = new(WebRTCClient)
 
@@ -123,11 +121,11 @@ func (c *Conductor) ProcessCommand(cmd Cmd) {
 		c.Device.RecordMotorHome(cmd.Name, reverse)
 		break
 
-	case "persist_config":
-		filename, _ := yamlFilename()
-		yml, _ := yaml.Marshal(c.Device.GetConfig())
-		ioutil.WriteFile(filename, yml, 0744)
-		break
+		//case "persist_config":
+		//	filename, _ := yamlFilename()
+		//	yml, _ := yaml.Marshal(c.Device.GetConfig())
+		//	ioutil.WriteFile(filename, yml, 0744)
+		//	break
 
 	default:
 		fmt.Printf("Unable to process command %v\n", cmd)
@@ -160,17 +158,23 @@ func (c *Conductor) UpdateClients() {
 	}
 }
 
-func (c *Conductor) ReceiveOffer(msg string, signals chan <- string) (client *WebRTCClient, err error) {
+func (c *Conductor) ReceiveOffer(msg string, signals chan<- string) (client *WebRTCClient, err error) {
 	sdp := webrtc.DeserializeSessionDescription(msg)
 	if sdp != nil {
 		switch sdp.Type {
 		case "offer":
 			client, err = NewWebRTCClient(sdp, ConductorInterface(c), signals)
+			if err != nil {
+				return nil, err
+			}
 			c.clients = append(c.clients, client)
-			return
+			return client, nil
+			break
+		default:
+			return nil, errors.New("Unkown SDP type")
 		}
 	}
-	return nil, errors.New("offer was not of type offer")
+	return nil, errors.New("SDP was not valid")
 }
 
 //func (c *Conductor) AddSignalingServer(wsUrl string) (server *websocket.Conn, err error) {

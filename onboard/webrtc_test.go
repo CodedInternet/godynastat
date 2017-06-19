@@ -161,3 +161,67 @@ func TestWebRTCClient(t *testing.T) {
 	})
 
 }
+
+func TestConductor_ReceiveOffer(t *testing.T) {
+	var err error
+
+	conductor := new(Conductor)
+
+	// Build our remote party
+	config := webrtc.NewConfiguration(
+		webrtc.OptionIceServer("stun:stun.l.google.com:19302"),
+	)
+
+	remote := new(mockClient)
+	remote.pc, err = webrtc.NewPeerConnection(config)
+	if err != nil {
+		panic(err)
+	}
+
+	// create data channels
+	remote.tx, err = remote.pc.CreateDataChannel("data", webrtc.Init{
+		Ordered:  true,
+		Protocol: "udp",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	remote.rx, err = remote.pc.CreateDataChannel("command", webrtc.Init{
+		Ordered:  true,
+		Protocol: "tcp",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	offer, err := remote.pc.CreateOffer()
+	if err != nil {
+		panic(err)
+	}
+	remote.pc.SetLocalDescription(offer)
+
+	signals := make(chan string, 1)
+
+	Convey("receiving a valid offer produces a new client", t, func() {
+		conductor.ReceiveOffer(offer.Serialize(), signals)
+		So(conductor.clients, ShouldNotBeEmpty)
+		So(<-signals, ShouldNotBeBlank)
+	})
+
+	Convey("recieving invalid offers produces errors", t, func() {
+		Convey("Not a valid SDP", func() {
+			client, err := conductor.ReceiveOffer("hello world, I'm going to break this", signals)
+			So(client, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("SDP type is not offer - is answer", func() {
+			answer := offer
+			answer.Type = "answer"
+			client, err := conductor.ReceiveOffer(answer.Serialize(), signals)
+			So(client, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+		})
+	})
+}
