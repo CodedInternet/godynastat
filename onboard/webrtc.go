@@ -37,7 +37,7 @@ type ConductorInterface interface {
 func NewWebRTCClient(
 	sdp *webrtc.SessionDescription,
 	conductor ConductorInterface,
-	signals <-chan string) (client *WebRTCClient, err error) {
+	signals chan <- string) (client *WebRTCClient, err error) {
 
 	client = new(WebRTCClient)
 
@@ -81,11 +81,15 @@ func NewWebRTCClient(
 	if err != nil {
 		panic(err)
 	}
-	answer, err := client.pc.CreateAnswer()
-	if err != nil {
-		panic(err)
-	}
-	client.pc.SetLocalDescription(answer)
+	go func() {
+		answer, err := client.pc.CreateAnswer()
+		if err != nil {
+			panic(err)
+		}
+		client.pc.SetLocalDescription(answer)
+		signals <- answer.Serialize()
+		return
+	}()
 
 	return
 }
@@ -156,18 +160,15 @@ func (c *Conductor) UpdateClients() {
 	}
 }
 
-func (c *Conductor) ReceiveOffer(msg string, signals <-chan string) (client *WebRTCClient, err error) {
+func (c *Conductor) ReceiveOffer(msg string, signals chan <- string) (client *WebRTCClient, err error) {
 	sdp := webrtc.DeserializeSessionDescription(msg)
-	switch sdp.Type {
-	case "offer":
-		signals <- "recieved offer"
-		client, err = NewWebRTCClient(sdp, ConductorInterface(c), signals)
-		if err != nil {
-			panic(err)
-			return nil, err
+	if sdp != nil {
+		switch sdp.Type {
+		case "offer":
+			client, err = NewWebRTCClient(sdp, ConductorInterface(c), signals)
+			c.clients = append(c.clients, client)
+			return
 		}
-		c.clients = append(c.clients, client)
-		return
 	}
 	return nil, errors.New("offer was not of type offer")
 }

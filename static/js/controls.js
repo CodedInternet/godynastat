@@ -2,7 +2,7 @@
 (function() {
   (function($) {
     var Conductor, Dynastat, SensorSpot, SignalingSocket, count, fps, load_stun, stepPrecision, stun_servers;
-      stun_servers = ['stun.stunprotocol.org'];
+    stun_servers = ['stun.stunprotocol.org'];
     fps = 0;
     count = 0;
     Number.prototype.map = function(in_min, in_max, out_min, out_max) {
@@ -163,9 +163,9 @@
       }
 
       Dynastat.prototype.updateState = function(update) {
-          console.log(update);
-          this.updateSensors(update["Sensors"]);
-          return this.updateMotors(update["Motors"]);
+        console.log(update);
+        this.updateSensors(update["Sensors"]);
+        return this.updateMotors(update["Motors"]);
       };
 
       Dynastat.prototype.updateSensors = function(update) {
@@ -191,8 +191,8 @@
         for (name in update) {
           motor = update[name];
           id = "#m_" + name;
-            target = Number(motor["Target"]);
-            current = Number(motor["Current"]);
+          target = Number(motor["Target"]);
+          current = Number(motor["Current"]);
           $input = $(id);
           $output = $(id + "_current");
           min = Number($input.attr('min'));
@@ -301,12 +301,15 @@
       Conductor.prototype.onssmessage = function(event) {
         var message;
         message = JSON.parse(event.data);
+        console.log(message);
         if (message.type === "answer") {
           return this.pc.setRemoteDescription(new RTCSessionDescription(message), (function(_this) {
             return function(event) {
               return $('.m_input').removeAttr('disabled');
             };
           })(this));
+        } else if (message.candidate) {
+          return this.pc.addIceCandidate(new RTCIceCandidate(message));
         }
       };
 
@@ -336,7 +339,7 @@
     return $(function() {
       var conductor, signal_socket, update_fps;
       load_stun();
-        signal_socket = new SignalingSocket("ws://" + document.location.host + "/ws/signal");
+      signal_socket = new SignalingSocket("ws://" + document.location.host + "/ws/signal");
       conductor = new Conductor(signal_socket);
       $.conductor = conductor;
       $('#connect').on('click', (function(_this) {
