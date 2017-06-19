@@ -6,6 +6,7 @@ import (
 	"github.com/abiosoft/ishell"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -73,7 +74,13 @@ func main() {
 		Func: func(c *ishell.Context) {
 			name := string(c.Args[0])
 			c.Printf("Homing Motor %s\n", name)
-			motor := dynastat.Motors[name]
+
+			motor, ok := dynastat.Motors[name]
+			if !ok {
+				log.Fatalf("Unable to find motor %s", name)
+				return
+			}
+
 			motor.Home(config.Motors[name].Cal)
 		},
 	})
@@ -97,10 +104,12 @@ func main() {
 		Func: func(c *ishell.Context) {
 			buf := make([]byte, 2)
 			dynastat.sensorBus.Get(m_CONTROL_ADDRESS, m_CONTROL_REG, buf)
-			val := binary.BigEndian.Uint16(buf)
+			val := binary.LittleEndian.Uint16(buf)
 			c.Printf("0x%X\n", val)
 
-			c.Printf("Match: #v\n", val&10 == 0)
+			for i := 0; i <= 10; i++ {
+				c.Printf("Match: %d & %d = %v\n", val, i, val&(1<<uint16(i)) == 0)
+			}
 		},
 	})
 

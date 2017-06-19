@@ -1,4 +1,4 @@
-FROM resin/beaglebone-golang:1.8
+FROM resin/beaglebone-black-golang:1.8
 
 # Enable systemd
 ENV INITSYSTEM on
