@@ -3,6 +3,7 @@ package onboard
 import (
 	"encoding/json"
 	"github.com/keroserene/go-webrtc"
+	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 	"time"
 )
@@ -12,17 +13,30 @@ type mockConductor struct {
 	rx chan (Cmd)
 }
 
-func (c *mockConductor) SendSignal(sdp string) {
-	c.tx <- sdp
-}
-
 func (c *mockConductor) ProcessCommand(cmd Cmd) {
 	c.rx <- cmd
 }
 
+func (c *mockConductor) processSignals(t *testing.T, pc *webrtc.PeerConnection) {
+	for {
+		var msg = <-c.tx
+		var sig map[string]interface{}
+		json.Unmarshal([]byte(msg), &sig)
+		if _, ok := sig["type"]; ok {
+			sdp := webrtc.DeserializeSessionDescription(msg)
+			pc.SetRemoteDescription(sdp)
+		} else if _, ok := sig["candidate"]; ok {
+			ice := webrtc.DeserializeIceCandidate(msg)
+			pc.AddIceCandidate(*ice)
+		}
+	}
+}
+
 type mockClient struct {
-	pc     *webrtc.PeerConnection
-	tx, rx *webrtc.DataChannel
+	pc          *webrtc.PeerConnection
+	tx, rx      *webrtc.DataChannel
+	iceComplete chan bool
+	open        chan bool
 }
 
 func TestWebRTCClient(t *testing.T) {
@@ -31,6 +45,7 @@ func TestWebRTCClient(t *testing.T) {
 	config := webrtc.NewConfiguration(
 		webrtc.OptionIceServer("stun:stun.l.google.com:19302"),
 	)
+
 	remote := new(mockClient)
 	remote.pc, err = webrtc.NewPeerConnection(config)
 	if err != nil {
@@ -45,10 +60,31 @@ func TestWebRTCClient(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+
 	remote.rx, err = remote.pc.CreateDataChannel("command", webrtc.Init{
 		Ordered:  true,
 		Protocol: "tcp",
 	})
+	if err != nil {
+		panic(err)
+	}
+
+	// create a simple channel to monitor the opening of the connection
+	remote.iceComplete = make(chan bool, 1)
+	remote.pc.OnIceComplete = func() {
+		remote.iceComplete <- true
+	}
+	remote.open = make(chan bool, 1)
+	remote.rx.OnOpen = func() {
+		t.Log("Opening")
+		remote.open <- true
+	}
+
+	// Generate a mock conductor
+	conductor := new(mockConductor)
+	conductor.tx = make(chan string, 10)
+	conductor.rx = make(chan (Cmd), 1)
+	go conductor.processSignals(t, remote.pc)
 
 	offer, err := remote.pc.CreateOffer()
 	if err != nil {
@@ -56,42 +92,27 @@ func TestWebRTCClient(t *testing.T) {
 	}
 	remote.pc.SetLocalDescription(offer)
 
-	// Generate a mock conductor
-	conductor := new(mockConductor)
-	conductor.tx = make(chan (string), 1)
-	conductor.rx = make(chan (Cmd), 1)
-	signals := make(chan (string), 1)
-
 	Convey("client generatation and answer creation works", t, func() {
 		// Try to create our client
-		client, err := NewWebRTCClient(offer, conductor, signals)
+		client, err := NewWebRTCClient(offer, conductor, conductor.tx)
 		So(err, ShouldBeNil)
 		So(client, ShouldNotBeNil)
 
-		Convey("answer has been sent to the conductor to be transmitted", func() {
-			var tx string
+		Convey("Ice gathering works and is complete", func() {
 			select {
-			case tx = <-conductor.tx:
-				var sdp map[string]interface{}
-				json.Unmarshal([]byte(tx), &sdp)
-				So(sdp["type"], ShouldEqual, "answer")
-				break
-			case <-time.After(time.Second * 1):
-				t.Fatal("Answer timed out.")
+			case <-remote.iceComplete:
+				So(remote.pc.IceGatheringState(), ShouldEqual, webrtc.IceGatheringStateComplete)
+			case <-time.After(time.Second):
+				t.Fatal("IceGatheringComplete timed out")
 			}
 
 			Convey("connection can be opened", func() {
-				sdp := webrtc.DeserializeSessionDescription(tx)
-				remote.pc.SetRemoteDescription(sdp)
-
-				open := make(chan (bool))
-				remote.rx.OnOpen = func() {
-					open <- true
-				}
 				select {
-				case <-open:
+				case <-remote.open:
 					So(remote.rx.ReadyState(), ShouldEqual, webrtc.DataStateOpen)
-				case <-time.After(time.Second):
+					break
+				case <-time.After(time.Second * 5):
+					// we have timed out waiting
 					t.Fatal("OnOpen timed out.")
 				}
 
