@@ -57,7 +57,7 @@ func init() {
 }
 
 func main() {
-	port := "0.0.0.0:8000"
+	port := "0.0.0.0:80"
 
 	//r := mux.NewRouter()
 	//r.StrictSlash(true)
