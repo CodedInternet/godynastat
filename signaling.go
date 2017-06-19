@@ -44,12 +44,12 @@ func WebRTCSignalHandler(w http.ResponseWriter, r *http.Request) {
 
 	msgs := make(chan string, 1)
 
-	go func() {
+	go func(conn *websocket.Conn, msgs chan string) {
 		for {
 			msg := <-msgs
 			conn.WriteMessage(websocket.TextMessage, []byte(msg))
 		}
-	}()
+	}(conn, msgs)
 
 	for {
 		_, msg, err := conn.ReadMessage()
@@ -58,6 +58,6 @@ func WebRTCSignalHandler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		go ENV.CONDUCTOR.ReceiveOffer(string(msg), msgs)
+		ENV.Conductor.ReceiveOffer(string(msg), msgs)
 	}
 }

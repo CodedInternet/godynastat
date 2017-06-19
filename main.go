@@ -20,7 +20,7 @@ type EnvConfig struct {
 	JWT_ISSUER string `env:"RESIN_DEVICE_UUID" envDefault:"DEV"`
 	RESIN      bool   `env:"RESIN" envDefault:"0"`
 	DB         *storm.DB
-	CONDUCTOR  *Conductor
+	Conductor  *Conductor
 }
 
 var (
@@ -53,9 +53,33 @@ func init() {
 	}
 	ENV.DB = db
 
+	return
+}
+
+func main() {
+	port := "0.0.0.0:8000"
+
+	//r := mux.NewRouter()
+	//r.StrictSlash(true)
+	//r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
+	//
+	//r.PathPrefix("/ws/").Handler(_signaling.Handler())
+
+	r := chi.NewRouter()
+
+	// A good base middleware stack
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Logger)
+	r.Use(middleware.RedirectSlashes)
+	r.Use(middleware.Recoverer) // make sure this is last
+
+	defer ENV.DB.Close() // close database when finished
+
 	// Setup the device properly so everything works as expected later
 	// TODO: This should be a hybrid approach using the DB
 	var filename string
+	var err error
 	if os.Getenv("RESIN") == "1" {
 		println("Running on resin")
 		filename = "/data/bbb_config.yaml"
@@ -83,35 +107,10 @@ func init() {
 		panic(fmt.Sprintf("Unable to initialize dynastat: %v", err))
 	}
 
-	conductor := new(Conductor)
-	conductor.Device = dynastat
+	ENV.Conductor = new(Conductor)
+	ENV.Conductor.Device = dynastat
 
-	go conductor.UpdateClients()
-
-	return
-}
-
-func main() {
-	port := "0.0.0.0:8000"
-
-	//r := mux.NewRouter()
-	//r.StrictSlash(true)
-	//r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
-	//
-	//r.PathPrefix("/ws/").Handler(_signaling.Handler())
-
-	r := chi.NewRouter()
-
-	// A good base middleware stack
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
-	r.Use(middleware.RedirectSlashes)
-	r.Use(middleware.Recoverer) // make sure this is last
-
-	defer ENV.DB.Close() // close database when finished
-
-	// setup device
+	go ENV.Conductor.UpdateClients()
 
 	//---
 	// Create a local shell
