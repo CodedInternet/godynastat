@@ -1,20 +1,20 @@
 ---
 version: 1
 signalingservers:
-- ws://10.20.30.20:8000/ws/device/test/
+- ws://10.20.30.66:8000/ws/device/test/
 i2cbus:
   sensor: 1
 uart:
   motor: "/dev/ttyS2"
 motors:
-#  left_foot_size:
-#    address: 0x10
-#    cal: -62500
-#    low: -60000
-#    high: 20000
-#    speed: 255
-#    damping: 255
-#    control: 8
+  left_foot_size:
+    address: 0x10
+    cal: -82500
+    low: 20000
+    high: -60000
+    speed: 255
+    damping: 255
+    control: 8
   left_rearfoot_frontal:
     address: 0x11
     cal: -115
@@ -38,24 +38,24 @@ motors:
     high: -150
     speed: 200
     damping: 255
+    control: 3
+  left_first_ray:
+    address: 0x14
+    cal: -600
+    low: -200
+    high: 0
+    speed: 30
+    damping: 127
     control: 2
-#  left_first_ray:
-#    address: 0x14
-#    cal: 700
-#    low: 450
-#    high: 0
-#    speed: 30
-#    damping: 127
-#    control: 1
 
-#  right_foot_size:
-#    address: 0x20
-#    cal: -62500
-#    low: -62000
-#    high: 20000
-#    speed: 255
-#    damping: 127
-#    control: 7
+  right_foot_size:
+    address: 0x20
+    cal: -82500
+    low: 20000
+    high: -60000
+    speed: 255
+    damping: 127
+    control: 7
   right_rearfoot_frontal:
     address: 0x21
     cal: 120 # requires tape to actuate due to micro being too low
@@ -80,14 +80,15 @@ motors:
     speed: 50
     damping: 255
     control: 2
-#  right_first_ray:
-#    address: 0x24
-#    cal: 700
-#    low: 450
-#    high: 0
-#    speed: 30
-#    damping: 127
-#    control: 1
+  right_first_ray:
+    address: 0x24
+    cal: 700
+    low: 450
+    high: 0
+    speed: 30
+    damping: 127
+    control: 1
+
 sensors:
   left_heel:
     address: 0x15

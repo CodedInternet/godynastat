@@ -461,7 +461,7 @@ func (m *RMCS220xMotor) readPosition() (val int32, err error) {
 func (m *RMCS220xMotor) readControl() bool {
 	buf := make([]byte, 2)
 	m.controlBus.Get(m_CONTROL_ADDRESS, m_CONTROL_REG, buf)
-	val := binary.BigEndian.Uint16(buf)
+	val := binary.LittleEndian.Uint16(buf)
 	return val&m.control == 0
 }
 
@@ -512,7 +512,7 @@ func (m *RMCS220xMotor) putRaw(reg uint8, val int) {
 }
 
 func (m *RMCS220xMotor) findHome(reverse bool) {
-	inc := int32(math.Abs(float64(m.rawHigh-m.rawLow))) / 2
+	inc := int32(math.Abs(float64(m.rawHigh-m.rawLow))) / 5
 
 	if reverse {
 		// Invert increment so we go in the right direction
@@ -521,7 +521,7 @@ func (m *RMCS220xMotor) findHome(reverse bool) {
 
 	for !m.readControl() {
 		m.bus.Put(m.address, m_REG_RELATIVE, inc)
-		time.Sleep(time.Second / 5)
+		time.Sleep(time.Millisecond * time.Duration(inc*5))
 	}
 }
 
@@ -533,7 +533,7 @@ func NewRMCS220xMotor(bus UARTMCUInterface, controlBus I2CBusInterface, control 
 	motor = new(RMCS220xMotor)
 	motor.bus = bus
 	motor.controlBus = controlBus
-	motor.control = control
+	motor.control = 1 << (control - 1)
 	motor.address = address
 	motor.rawLow = rawLow
 	motor.rawHigh = rawHigh
