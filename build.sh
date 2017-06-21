@@ -13,7 +13,6 @@ echo "Installing"
 go install
 
 echo "Copying config etc"
-cp bbb_config.yaml /data/
 cp run.sh bbb_config.yaml $GOPATH/
 
 #echo "Cleaning up"
