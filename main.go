@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 type EnvConfig struct {
@@ -162,6 +163,132 @@ func main() {
 				c.Println("Superuser created")
 			},
 		})
+
+		// Add device specific commands
+		shell.AddCmd(&ishell.Cmd{
+			Name: "move",
+			Help: "move <Motor> <position (0-255)>",
+			Func: func(c *ishell.Context) {
+				name := c.Args[0]
+				position, _ := strconv.Atoi(c.Args[1])
+				c.Printf("Moving Motor %s to %d\n", name, position)
+				dynastat.SetMotor(name, position)
+			},
+		})
+		shell.AddCmd(&ishell.Cmd{
+			Name: "home",
+			Help: "home <Motor>",
+			Func: func(c *ishell.Context) {
+				name := string(c.Args[0])
+				c.Printf("Homing Motor %s\n", name)
+
+				motor, ok := dynastat.Motors[name]
+				if !ok {
+					log.Fatalf("Unable to find motor %s", name)
+					return
+				}
+
+				motor.Home(config.Motors[name].Cal)
+			},
+		})
+		shell.AddCmd(&ishell.Cmd{
+			Name: "state",
+			Help: "Reads the current state of the device",
+			Func: func(c *ishell.Context) {
+				c.Println("Getting state")
+				state, err := dynastat.GetState()
+				c.Printf("#v #v", state, err)
+			},
+		})
+
+		{
+			// Calibration specific commands
+			motorNames := func([]string) []string {
+				keys := make([]string, len(dynastat.Motors))
+				for k := range dynastat.Motors {
+					keys = append(keys, k)
+				}
+				return keys
+			}
+
+			calCmd := &ishell.Cmd{
+				Name: "cal",
+				Help: "calibrate a motor",
+			}
+
+			calCmd.AddCmd(&ishell.Cmd{
+				Name:      "move",
+				Help:      "Move a motor to a specified absolute value",
+				Completer: motorNames,
+				Func: func(c *ishell.Context) {
+					name := c.Args[0]
+					position, _ := strconv.Atoi(c.Args[1])
+
+					dynastat.GotoMotorRaw(name, position)
+				},
+			})
+
+			calCmd.AddCmd(&ishell.Cmd{
+				Name:      "write",
+				Help:      "Write the current absolute value for a motor",
+				Completer: motorNames,
+				Func: func(c *ishell.Context) {
+					name := c.Args[0]
+					position, _ := strconv.Atoi(c.Args[1])
+
+					dynastat.WriteMotorRaw(name, position)
+				},
+			})
+
+			calCmd.AddCmd(&ishell.Cmd{
+				Name:      "low",
+				Help:      "Set the current position as the low value for a motor",
+				Completer: motorNames,
+				Func: func(c *ishell.Context) {
+					name := c.Args[0]
+					dynastat.RecordMotorLow(name)
+				},
+			})
+			calCmd.AddCmd(&ishell.Cmd{
+				Name:      "high",
+				Help:      "Set the current position as the high value for a motor",
+				Completer: motorNames,
+				Func: func(c *ishell.Context) {
+					name := c.Args[0]
+					dynastat.RecordMotorHigh(name)
+				},
+			})
+
+			calCmd.AddCmd(&ishell.Cmd{
+				Name:      "home",
+				Help:      "Locate the home position and record the value in the config",
+				Completer: motorNames,
+				Func: func(c *ishell.Context) {
+					name := c.Args[0]
+					reverse, _ := strconv.ParseBool(c.Args[1])
+
+					c.ProgressBar().Indeterminate(true)
+					c.ProgressBar().Start()
+
+					dynastat.RecordMotorHome(name, reverse)
+
+					c.ProgressBar().Stop()
+				},
+			})
+
+			calCmd.AddCmd(&ishell.Cmd{
+				Name: "commit",
+				Help: "Commit the current config to disk",
+				Func: func(c *ishell.Context) {
+					yml, _ := yaml.Marshal(dynastat.GetConfig())
+					ioutil.WriteFile(filename, yml, 0744)
+				},
+			})
+
+			shell.AddCmd(calCmd)
+		}
+
+		// Start an instance of the shell so it can be controlled from the CLI
 		go shell.Start()
 	}
 
