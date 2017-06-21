@@ -19,6 +19,7 @@ import (
 type EnvConfig struct {
 	JWT_ISSUER string `env:"RESIN_DEVICE_UUID" envDefault:"DEV"`
 	RESIN      bool   `env:"RESIN" envDefault:"0"`
+	DEBUG      bool   `env:"DEBUG" envDefault:"0"`
 	SRCDIR     string `env:"SRCDIR" envDefault:"."`
 	DB         *storm.DB
 	Conductor  *Conductor
@@ -186,7 +187,7 @@ func main() {
 
 	// Add websocket routes
 	r.Route("/ws", func(r chi.Router) {
-		if ENV.RESIN {
+		if ENV.RESIN && !ENV.DEBUG {
 			// Enable JWT validation in production
 			r.Use(ValidateJWT)
 		}
