@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	. "github.com/CodedInternet/godynastat/onboard"
 	"github.com/abiosoft/ishell"
@@ -198,6 +199,20 @@ func main() {
 				c.Println("Getting state")
 				state, err := dynastat.GetState()
 				c.Printf("#v #v", state, err)
+			},
+		})
+
+		shell.AddCmd(&ishell.Cmd{
+			Name: "control",
+			Func: func(c *ishell.Context) {
+				buf := make([]byte, 2)
+				dynastat.SensorBus.Get(0x20, 3, buf)
+				val := binary.LittleEndian.Uint16(buf)
+				c.Printf("0x%X\n", val)
+
+				for i := 0; i <= 10; i++ {
+					c.Printf("Match: %d & %d = %v\n", val, i, val&(1<<uint16(i)) == 0)
+				}
 			},
 		})
 

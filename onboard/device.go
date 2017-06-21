@@ -114,7 +114,7 @@ type MotorInterface interface {
 type Dynastat struct {
 	Motors    map[string]MotorInterface
 	sensors   map[string]SensorInterface
-	sensorBus I2CBusInterface
+	SensorBus I2CBusInterface
 	motorBus  UARTMCUInterface
 	config    *DynastatConfig
 }
@@ -556,13 +556,13 @@ func NewDynastat(config *DynastatConfig) (dynastat *Dynastat, err error) {
 		dynastat.sensors = make(map[string]SensorInterface, len(config.Sensors))
 
 		// Open COM ports
-		dynastat.sensorBus = OpenI2C(fmt.Sprintf("/dev/i2c-%d", config.I2CBus.Sensor))
+		dynastat.SensorBus = OpenI2C(fmt.Sprintf("/dev/i2c-%d", config.I2CBus.Sensor))
 		dynastat.motorBus = OpenUARTMCU(config.UART.Motor)
 
 		for name, conf := range config.Motors {
 			dynastat.Motors[name] = NewRMCS220xMotor(
 				dynastat.motorBus,
-				dynastat.sensorBus,
+				dynastat.SensorBus,
 				conf.Control,
 				conf.Address,
 				conf.Low,
@@ -578,7 +578,7 @@ func NewDynastat(config *DynastatConfig) (dynastat *Dynastat, err error) {
 
 			if !exists {
 				board = &SensorBoard{
-					dynastat.sensorBus,
+					dynastat.SensorBus,
 					conf.Address,
 					make([]byte, sb_ROWS*sb_COLS*2),
 				}
@@ -652,7 +652,7 @@ func (d *Dynastat) RecordMotorLow(name string) (err error) {
 	// recreate the motor with new values
 	motor = NewRMCS220xMotor(
 		d.motorBus,
-		d.sensorBus,
+		d.SensorBus,
 		conf.Control,
 		conf.Address,
 		conf.Low,
@@ -682,7 +682,7 @@ func (d *Dynastat) RecordMotorHigh(name string) (err error) {
 	// recreate the motor with new values
 	motor = NewRMCS220xMotor(
 		d.motorBus,
-		d.sensorBus,
+		d.SensorBus,
 		conf.Control,
 		conf.Address,
 		conf.Low,
@@ -714,7 +714,7 @@ func (d *Dynastat) RecordMotorHome(name string, reverse bool) (err error) {
 	// recreate the motor with new values
 	motor = NewRMCS220xMotor(
 		d.motorBus,
-		d.sensorBus,
+		d.SensorBus,
 		conf.Control,
 		conf.Address,
 		conf.Low,
