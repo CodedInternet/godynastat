@@ -19,6 +19,7 @@ import (
 type EnvConfig struct {
 	JWT_ISSUER string `env:"RESIN_DEVICE_UUID" envDefault:"DEV"`
 	RESIN      bool   `env:"RESIN" envDefault:"0"`
+	SRCDIR     string `env:"SRCDIR" envDefault:"."`
 	DB         *storm.DB
 	Conductor  *Conductor
 }
@@ -84,7 +85,7 @@ func main() {
 		println("Running on resin")
 		filename = "/data/bbb_config.yaml"
 	} else {
-		filename, err = filepath.Abs("./bbb_config.yaml")
+		filename, err = filepath.Abs(ENV.SRCDIR + "/bbb_config.yaml")
 		if err != nil {
 			panic(err)
 		}
@@ -195,8 +196,8 @@ func main() {
 	})
 
 	// add static base routes
-	r.FileServer("/", http.Dir("html"))
-	r.FileServer("/static", http.Dir("static"))
+	r.FileServer("/", http.Dir(ENV.SRCDIR+"/html"))
+	r.FileServer("/static", http.Dir(ENV.SRCDIR+"/static"))
 
 	fmt.Println("Listening on port", port)
 	if err := http.ListenAndServe(port, r); err != nil {
