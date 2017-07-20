@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/asdine/storm"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/pressly/chi/render"
+	"github.com/go-chi/render"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"strings"

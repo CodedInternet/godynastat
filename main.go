@@ -7,8 +7,8 @@ import (
 	"github.com/abiosoft/ishell"
 	"github.com/asdine/storm"
 	"github.com/caarlos0/env"
-	"github.com/pressly/chi"
-	"github.com/pressly/chi/middleware"
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 type EnvConfig struct {
@@ -76,7 +77,6 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.RedirectSlashes)
-	r.Use(middleware.Recoverer) // make sure this is last
 
 	defer ENV.DB.Close() // close database when finished
 
@@ -332,6 +332,8 @@ func main() {
 		if ENV.RESIN && !ENV.DEBUG {
 			// Enable JWT validation in production
 			r.Use(ValidateJWT)
+		} else {
+			fmt.Println("Running in debug mode. Authentication disabled.")
 		}
 
 		r.Get("/echo", EchoHandler)
@@ -339,8 +341,10 @@ func main() {
 	})
 
 	// add static base routes
-	r.FileServer("/", http.Dir(ENV.SRCDIR+"/html"))
-	r.FileServer("/static", http.Dir(ENV.SRCDIR+"/static"))
+	FileServer(r,"/", http.Dir(ENV.SRCDIR+"/html"))
+	FileServer(r,"/static", http.Dir(ENV.SRCDIR+"/static"))
+
+	r.Use(middleware.Recoverer) // make sure this is last
 
 	fmt.Println("Listening on port", port)
 	if err := http.ListenAndServe(port, r); err != nil {
@@ -360,4 +364,24 @@ func openDb(dbFile string) (db *storm.DB, err error) {
 	}
 
 	return
+}
+
+// FileServer conveniently sets up a http.FileServer handler to serve
+// static files from a http.FileSystem.
+func FileServer(r chi.Router, path string, root http.FileSystem) {
+	if strings.ContainsAny(path, "{}*") {
+		panic("FileServer does not permit URL parameters.")
+	}
+
+	fs := http.StripPrefix(path, http.FileServer(root))
+
+	if path != "/" && path[len(path)-1] != '/' {
+		r.Get(path, http.RedirectHandler(path+"/", 301).ServeHTTP)
+		path += "/"
+	}
+	path += "*"
+
+	r.Get(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fs.ServeHTTP(w, r)
+	}))
 }

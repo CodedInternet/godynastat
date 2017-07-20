@@ -3,7 +3,7 @@ package main
 import (
 	"net/http"
 	//"github.com/asdine/storm"
-	"github.com/pressly/chi/render"
+	"github.com/go-chi/render"
 	//"github.com/asdine/storm"
 )
 
