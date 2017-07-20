@@ -4,7 +4,7 @@ pushd "$(dirname "$0")" # change to the correct directory to minimise build
 
 # Fetch dependencies for build
 echo "Installing dependencies"
-go get .
+dep ensure
 
 echo "Building"
 go build

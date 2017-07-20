@@ -100,3 +100,5 @@ crashlytics-build.properties
 fabric.properties
 
 \.resin-sync\.yml
+
+vendor/
