@@ -77,6 +77,7 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.RedirectSlashes)
+	r.Use(middleware.Recoverer) // make sure this is last
 
 	defer ENV.DB.Close() // close database when finished
 
@@ -343,8 +344,6 @@ func main() {
 	// add static base routes
 	FileServer(r,"/", http.Dir(ENV.SRCDIR+"/html"))
 	FileServer(r,"/static", http.Dir(ENV.SRCDIR+"/static"))
-
-	r.Use(middleware.Recoverer) // make sure this is last
 
 	fmt.Println("Listening on port", port)
 	if err := http.ListenAndServe(port, r); err != nil {

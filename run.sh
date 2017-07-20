@@ -20,7 +20,7 @@ hwclock -f /dev/rtc1 -s
 if ! [ -a /data/bbb_config.yaml ]; then
     echo "Bootstrapping config"
     mkdir /data
-    cp $SRCDIR/onboard/bbb_config.yaml /data/bbb_config.yaml
+    cp $GOPATH/bbb_config.yaml /data/bbb_config.yaml
 fi
 
 echo "Started at " $(date) | tee -a /data/start.log
