@@ -121,6 +121,14 @@ func main() {
 	// Create a local shell
 	//---
 	{
+		motorNames := func([]string) []string {
+			keys := make([]string, len(dynastat.Motors))
+			for k := range dynastat.Motors {
+				keys = append(keys, k)
+			}
+			return keys
+		}
+
 		shell := ishell.New()
 		shell.Println("Dynastat development shell")
 		shell.ShowPrompt(true)
@@ -169,6 +177,7 @@ func main() {
 		// Add device specific commands
 		shell.AddCmd(&ishell.Cmd{
 			Name: "move",
+			Completer: motorNames,
 			Help: "move <Motor> <position (0-255)>",
 			Func: func(c *ishell.Context) {
 				name := c.Args[0]
@@ -179,6 +188,7 @@ func main() {
 		})
 		shell.AddCmd(&ishell.Cmd{
 			Name: "home",
+			Completer: motorNames,
 			Help: "home <Motor>",
 			Func: func(c *ishell.Context) {
 				name := string(c.Args[0])
@@ -219,14 +229,6 @@ func main() {
 
 		{
 			// Calibration specific commands
-			motorNames := func([]string) []string {
-				keys := make([]string, len(dynastat.Motors))
-				for k := range dynastat.Motors {
-					keys = append(keys, k)
-				}
-				return keys
-			}
-
 			calCmd := &ishell.Cmd{
 				Name: "cal",
 				Help: "calibrate a motor",
@@ -280,6 +282,9 @@ func main() {
 				Help:      "Locate the home position and record the value in the config",
 				Completer: motorNames,
 				Func: func(c *ishell.Context) {
+					if len(c.Args) != 2 {
+						fmt.Errorf("Incorrect number of arguments. Usage: cal home <motor_name> <reverse>")
+					}
 					name := c.Args[0]
 					reverse, _ := strconv.ParseBool(c.Args[1])
 
