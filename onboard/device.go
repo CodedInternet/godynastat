@@ -117,6 +117,7 @@ type Dynastat struct {
 	SensorBus I2CBusInterface
 	motorBus  UARTMCUInterface
 	config    *DynastatConfig
+	lock      sync.Mutex
 }
 
 //go:generate msgp
@@ -512,7 +513,7 @@ func (m *RMCS220xMotor) putRaw(reg uint8, val int) {
 }
 
 func (m *RMCS220xMotor) findHome(reverse bool) {
-	inc := int32(math.Abs(float64(m.rawHigh-m.rawLow))) / 5
+	inc := int32(math.Abs(float64(m.rawHigh-m.rawLow))) / 10
 
 	if reverse {
 		// Invert increment so we go in the right direction
@@ -635,6 +636,9 @@ func (d *Dynastat) WriteMotorRaw(name string, position int) (err error) {
 }
 
 func (d *Dynastat) RecordMotorLow(name string) (err error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
 	motor, ok := d.Motors[name]
 	if !ok {
 		return errors.New(fmt.Sprintf("Unkown motor %s", name))
@@ -648,6 +652,7 @@ func (d *Dynastat) RecordMotorLow(name string) (err error) {
 	// update the config
 	conf := d.config.Motors[name]
 	conf.Low = pos
+	d.config.Motors[name] = conf
 
 	// recreate the motor with new values
 	motor = NewRMCS220xMotor(
@@ -660,11 +665,15 @@ func (d *Dynastat) RecordMotorLow(name string) (err error) {
 		conf.Speed,
 		conf.Damping,
 	)
+	d.Motors[name] = motor
 
 	return nil
 }
 
 func (d *Dynastat) RecordMotorHigh(name string) (err error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
 	motor, ok := d.Motors[name]
 	if !ok {
 		return errors.New(fmt.Sprintf("Unkown motor %s", name))
@@ -678,6 +687,7 @@ func (d *Dynastat) RecordMotorHigh(name string) (err error) {
 	// update the config
 	conf := d.config.Motors[name]
 	conf.High = pos
+	d.config.Motors[name] = conf
 
 	// recreate the motor with new values
 	motor = NewRMCS220xMotor(
@@ -690,11 +700,15 @@ func (d *Dynastat) RecordMotorHigh(name string) (err error) {
 		conf.Speed,
 		conf.Damping,
 	)
+	d.Motors[name] = motor
 
 	return nil
 }
 
 func (d *Dynastat) RecordMotorHome(name string, reverse bool) (err error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
 	motor, ok := d.Motors[name]
 	if !ok {
 		return errors.New(fmt.Sprintf("Unkown motor %s", name))
@@ -710,6 +724,7 @@ func (d *Dynastat) RecordMotorHome(name string, reverse bool) (err error) {
 	// update the config
 	conf := d.config.Motors[name]
 	conf.Cal = pos
+	d.config.Motors[name] = conf
 
 	// recreate the motor with new values
 	motor = NewRMCS220xMotor(
@@ -722,6 +737,7 @@ func (d *Dynastat) RecordMotorHome(name string, reverse bool) (err error) {
 		conf.Speed,
 		conf.Damping,
 	)
+	d.Motors[name] = motor
 
 	// reset to a sensible position
 	motor.Home(pos)
@@ -753,6 +769,8 @@ func (d *Dynastat) readMotors() (result map[string]MotorState, err error) {
 
 // GetState builds a complete state of the device including sensor and motor states.
 func (d *Dynastat) GetState() (result DynastatState, err error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	result.Motors, err = d.readMotors()
 	result.Sensors = d.readSensors()
 	return
