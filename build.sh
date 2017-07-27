@@ -4,6 +4,7 @@ pushd "$(dirname "$0")" # change to the correct directory to minimise build
 
 # Fetch dependencies for build
 echo "Installing dependencies"
+go get -u github.com/keroserene/go-webrtc # takes ages so need to install it manually
 dep ensure
 
 echo "Building"
