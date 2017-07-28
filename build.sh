@@ -7,14 +7,11 @@ echo "Installing dependencies"
 go get -u github.com/keroserene/go-webrtc # takes ages so need to install it manually
 dep ensure
 
-echo "Building"
-go build
-
-echo "Installing"
+echo "Building/Installing"
 go install
 
-echo "Copying config etc"
-cp run.sh bbb_config.yaml $GOPATH/
+#echo "Copying config etc"
+#cp run.sh bbb_config.yaml $GOPATH/
 
 #echo "Cleaning up"
 popd # revert back to wherever we were before

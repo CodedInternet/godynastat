@@ -24,6 +24,7 @@ type EnvConfig struct {
 	RESIN      bool   `env:"RESIN" envDefault:"0"`
 	DEBUG      bool   `env:"DEBUG" envDefault:"0"`
 	SRCDIR     string `env:"SRCDIR" envDefault:"."`
+	HTMLDIR	   string `env:"HTMLDIR" envDefault:"./frontend/dist/"`
 	DB         *storm.DB
 	Conductor  *Conductor
 }
@@ -347,8 +348,7 @@ func main() {
 	})
 
 	// add static base routes
-	FileServer(r,"/", http.Dir(ENV.SRCDIR+"/html"))
-	FileServer(r,"/static", http.Dir(ENV.SRCDIR+"/static"))
+	FileServer(r,"/", http.Dir(ENV.HTMLDIR))
 
 	fmt.Println("Listening on port", port)
 	if err := http.ListenAndServe(port, r); err != nil {
