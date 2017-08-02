@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"flag"
 	"fmt"
 	. "github.com/CodedInternet/godynastat/onboard"
 	"github.com/abiosoft/ishell"
@@ -24,7 +25,7 @@ type EnvConfig struct {
 	RESIN      bool   `env:"RESIN" envDefault:"0"`
 	DEBUG      bool   `env:"DEBUG" envDefault:"0"`
 	SRCDIR     string `env:"SRCDIR" envDefault:"."`
-	HTMLDIR	   string `env:"HTMLDIR" envDefault:"./frontend/dist/"`
+	HTMLDIR    string `env:"HTMLDIR" envDefault:"./frontend/dist/"`
 	DB         *storm.DB
 	Conductor  *Conductor
 }
@@ -63,13 +64,16 @@ func init() {
 }
 
 func main() {
-	port := "0.0.0.0:80"
-
 	//r := mux.NewRouter()
 	//r.StrictSlash(true)
 	//r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
 	//
 	//r.PathPrefix("/ws/").Handler(_signaling.Handler())
+
+	// process flags
+	simulated := flag.Bool("sim", false, "Run the device in simulator mode)")
+	port := flag.String("port", "0.0.0.0:80", "Specify the ip:port to listen on")
+	flag.Parse()
 
 	r := chi.NewRouter()
 
@@ -86,7 +90,7 @@ func main() {
 	// TODO: This should be a hybrid approach using the DB
 	var filename string
 	var err error
-	if os.Getenv("RESIN") == "1" {
+	if ENV.RESIN {
 		println("Running on resin")
 		filename = "/data/bbb_config.yaml"
 	} else {
@@ -108,9 +112,15 @@ func main() {
 	}
 
 	var dynastat *Dynastat
-	dynastat, err = NewDynastat(&config)
-	if err != nil {
-		panic(fmt.Sprintf("Unable to initialize dynastat: %v", err))
+
+	if *simulated {
+		println("Creating simulator")
+		dynastat = NewDynastatSimulator(&config)
+	} else {
+		dynastat, err = NewDynastat(&config)
+		if err != nil {
+			panic(fmt.Sprintf("Unable to initialize dynastat: %v", err))
+		}
 	}
 
 	ENV.Conductor = new(Conductor)
@@ -177,9 +187,9 @@ func main() {
 
 		// Add device specific commands
 		shell.AddCmd(&ishell.Cmd{
-			Name: "move",
+			Name:      "move",
 			Completer: motorNames,
-			Help: "move <Motor> <position (0-255)>",
+			Help:      "move <Motor> <position (0-255)>",
 			Func: func(c *ishell.Context) {
 				name := c.Args[0]
 				position, _ := strconv.Atoi(c.Args[1])
@@ -188,9 +198,9 @@ func main() {
 			},
 		})
 		shell.AddCmd(&ishell.Cmd{
-			Name: "home",
+			Name:      "home",
 			Completer: motorNames,
-			Help: "home <Motor>",
+			Help:      "home <Motor>",
 			Func: func(c *ishell.Context) {
 				name := string(c.Args[0])
 				c.Printf("Homing Motor %s\n", name)
@@ -348,10 +358,10 @@ func main() {
 	})
 
 	// add static base routes
-	FileServer(r,"/", http.Dir(ENV.HTMLDIR))
+	FileServer(r, "/", http.Dir(ENV.HTMLDIR))
 
-	fmt.Println("Listening on port", port)
-	if err := http.ListenAndServe(port, r); err != nil {
+	fmt.Println("Listening on port", *port)
+	if err := http.ListenAndServe(*port, r); err != nil {
 		log.Fatal(err)
 	}
 }
