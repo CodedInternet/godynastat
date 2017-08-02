@@ -28,6 +28,7 @@ type EnvConfig struct {
 	HTMLDIR    string `env:"HTMLDIR" envDefault:"./frontend/dist/"`
 	DB         *storm.DB
 	Conductor  *Conductor
+	Simulated  bool
 }
 
 var (
@@ -113,7 +114,8 @@ func main() {
 
 	var dynastat *Dynastat
 
-	if *simulated {
+	ENV.Simulated = *simulated
+	if ENV.Simulated {
 		println("Creating simulator")
 		dynastat = NewDynastatSimulator(&config)
 	} else {

@@ -4,6 +4,7 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+	"time"
 )
 
 var upgrader = websocket.Upgrader{
@@ -56,6 +57,11 @@ func WebRTCSignalHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Println("read:", err)
 			break
+		}
+
+		// artificially add a delay for the simulated device so we can mock some network transactions going on
+		if ENV.Simulated {
+			time.Sleep(time.Second * 2)
 		}
 
 		ENV.Conductor.ReceiveOffer(string(msg), msgs)

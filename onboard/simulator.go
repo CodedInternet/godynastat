@@ -9,9 +9,17 @@ import (
 const SENSOR_DELTA = 5
 const SENSOR_INTERVAL = time.Second / 10
 
+const MOTOR_DELTA = 5
+const MOTOR_INTERVAL = time.Second / 5
+
 type SimulatedSensor struct {
 	values     []uint8
 	rows, cols int
+}
+
+type SimulatedMotor struct {
+	name            string
+	current, target int
 }
 
 func (s *SimulatedSensor) SetScale(zero, half, full uint16) {
@@ -58,6 +66,66 @@ func NewSimulatedSensor(rows, cols int) (sensor *SimulatedSensor) {
 	return
 }
 
+func (m *SimulatedMotor) SetTarget(target int) {
+	fmt.Printf("Setting motor %s target to %d\n", m.name, target)
+	m.target = target
+	return
+}
+
+func (m *SimulatedMotor) GetPosition() (position int, err error) {
+	return m.current, nil
+}
+
+func (m *SimulatedMotor) Home(calibrationValue int) {
+	fmt.Printf("Homing to %d \n", calibrationValue)
+	return
+}
+
+func (m *SimulatedMotor) GetState() (state MotorState, err error) {
+	state.Current = m.current
+	state.Target = m.target
+	return state, nil
+}
+
+func (m *SimulatedMotor) getRaw(reg uint8) (int, error) {
+	fmt.Errorf("[ERROR][NotImplemented][SimulatedMotor] getRaw not implemented in SimulatedMotor\n")
+	return 0, nil
+}
+
+func (m *SimulatedMotor) putRaw(reg uint8, val int) {
+	fmt.Errorf("[ERROR][NotImplemented][SimulatedMotor] putRaw not implemented in SimulatedMotor\n")
+	return
+}
+
+func (m *SimulatedMotor) findHome(reverse bool) {
+	fmt.Errorf("[ERROR][NotImplemented][SimulatedMotor] findHome not implemented in SimulatedMotor\n")
+	return
+}
+
+func (m *SimulatedMotor) update() {
+	for {
+		if m.current != m.target {
+			delta := m.target - m.current
+			// make sure we go in the correct direction and value is less than the const in the respective direction
+			if delta > 0 {
+				if delta > MOTOR_DELTA {
+					delta = MOTOR_DELTA
+				}
+
+			} else {
+				if delta < -MOTOR_DELTA {
+					delta = -MOTOR_DELTA
+				}
+			}
+
+			// apply movement
+			m.current += delta
+		}
+
+		time.Sleep(MOTOR_INTERVAL)
+	}
+}
+
 func NewDynastatSimulator(config *DynastatConfig) (dynastat *Dynastat) {
 	dynastat = new(Dynastat)
 	dynastat.config = config
@@ -71,7 +139,12 @@ func NewDynastatSimulator(config *DynastatConfig) (dynastat *Dynastat) {
 		for name, conf := range config.Sensors {
 			dynastat.sensors[name] = NewSimulatedSensor(conf.Rows, conf.Cols)
 		}
-		// establish standard device
+
+		for name := range config.Motors {
+			m := &SimulatedMotor{name: name}
+			go m.update()
+			dynastat.Motors[name] = m
+		}
 	default:
 		panic("Unkown version number")
 	}
