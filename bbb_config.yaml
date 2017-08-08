@@ -14,7 +14,7 @@ motors:
     high: -60000
     speed: 255
     damping: 255
-    control: 8
+    control: 2
   left_rearfoot_frontal:
     address: 0x11
     cal: -115
@@ -38,7 +38,7 @@ motors:
     high: -150
     speed: 200
     damping: 255
-    control: 3
+    control: 9
   left_first_ray:
     address: 0x14
     cal: -600
@@ -46,7 +46,7 @@ motors:
     high: 0
     speed: 30
     damping: 127
-    control: 2
+    control: 10
 
   right_foot_size:
     address: 0x20
@@ -55,7 +55,7 @@ motors:
     high: -60000
     speed: 255
     damping: 127
-    control: 7
+    control: 1
   right_rearfoot_frontal:
     address: 0x21
     cal: 120 # requires tape to actuate due to micro being too low
@@ -63,7 +63,7 @@ motors:
     high: 80
     speed: 200
     damping: 255
-    control: 10
+    control: 3
   right_rearfoot_inclination:
     address: 0x22
     cal: 370
@@ -71,7 +71,7 @@ motors:
     high: -225
     speed: 255
     damping: 0
-    control: 9
+    control: 4
   right_forefoot_frontal:
     address: 0x23
     cal: 420
@@ -79,7 +79,7 @@ motors:
     high: 150
     speed: 50
     damping: 255
-    control: 2
+    control: 7
   right_first_ray:
     address: 0x24
     cal: 700
@@ -87,7 +87,7 @@ motors:
     high: 0
     speed: 30
     damping: 127
-    control: 1
+    control: 8
 
 sensors:
   left_heel:
