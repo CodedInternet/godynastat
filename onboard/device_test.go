@@ -45,13 +45,14 @@ func (b *MockUARTMCU) Put(i2cAddr int, cmd uint8, value int32) {
 	b.cmd = cmd
 	b.value = value
 }
+
 func (b *MockUARTMCU) Get(i2cAddr int, cmd uint8) (value int32, err error) {
 	b.i2cAddr = i2cAddr
 	b.cmd = cmd
 	return b.value, nil
 }
 
-type MockControlI2C struct {
+type MockSwitchMCU struct {
 	mcu     *MockUARTMCU
 	trigger int32
 	control uint16
@@ -92,10 +93,15 @@ func (m *MockMotor) putRaw(_ uint8, _ int) {
 	panic("MockMotor does not implement raw getters and setters")
 }
 
-func (c *MockControlI2C) Get(i2cAddr int, cmd uint16, buf []byte) {
-	if i2cAddr != m_CONTROL_ADDRESS || cmd != m_CONTROL_REG {
+func (c *MockSwitchMCU) Get(i2cAddr int, cmd uint16, buf []byte) {
+	if i2cAddr != sm_ADDRESS || !(cmd == sm_REG_VALUES || cmd == sm_REG_ID) {
 		panic("Incorrect call to the control mcu")
 	}
+
+	if cmd == sm_REG_ID {
+		binary.LittleEndian.PutUint16(buf, sm_KNOWN_ID)
+	}
+
 	if c.mcu.cmd == m_REG_RELATIVE && c.mcu.value <= c.trigger {
 		binary.LittleEndian.PutUint16(buf, c.base-(1<<(c.control)-1))
 	} else {
@@ -103,8 +109,8 @@ func (c *MockControlI2C) Get(i2cAddr int, cmd uint16, buf []byte) {
 	}
 }
 
-func (c *MockControlI2C) Put(i2cAddr int, cmd uint16, buf []byte) {
-	panic("MockControlI2C does not implement Put")
+func (c *MockSwitchMCU) Put(i2cAddr int, cmd uint16, buf []byte) {
+	panic("MockSwitchMCU does not implement Put")
 }
 
 func TestSensorBoard(t *testing.T) {
@@ -247,19 +253,20 @@ func TestSensorBoard(t *testing.T) {
 
 func TestRMCS220xMotor(t *testing.T) {
 	mcu := &MockUARTMCU{}
-	control := &MockControlI2C{
+	control := &MockSwitchMCU{
 		mcu,
 		1000,
 		2,
 		0xffff,
 	}
+	switches, _ := NewSwitchMCU(control, sm_ADDRESS)
 
 	motor := NewRMCS220xMotor(
 		mcu,
-		control,
+		switches,
 		2,
 		0x16,
-		-2550,
+		-3000,
 		2550,
 		255,
 		42,
@@ -290,13 +297,13 @@ func TestRMCS220xMotor(t *testing.T) {
 		Convey("reading the control pin", func() {
 			Convey("not at home", func() {
 				mcu.value = 999
-				So(motor.readControl(), ShouldBeFalse)
+				So(motor.switches.ReadInput(2), ShouldBeFalse)
 			})
 
 			Convey("past home position", func() {
 				mcu.value = 1000
 				mcu.cmd = m_REG_RELATIVE // home function uses relative movement, as should our mock version
-				So(motor.readControl(), ShouldBeTrue)
+				So(motor.switches.ReadInput(2), ShouldBeTrue)
 			})
 		})
 	})
@@ -322,19 +329,21 @@ func TestRMCS220xMotor(t *testing.T) {
 
 			mcu.value = int32(motor.rawHigh)
 			pos, _ = motor.GetPosition()
-			So(pos, ShouldEqual, 255)
+			So(pos, ShouldBeBetweenOrEqual, 255-1, 255+1)
 		})
 
-		Convey("get position when motor drifts out of bounds", func() {
+		SkipConvey("get position when motor drifts out of bounds", func() {
 			mcu.value = int32(motor.rawLow * 2)
 			pos, _ := motor.GetPosition()
-			So(pos, ShouldEqual, 0)
+			So(pos, ShouldBeBetweenOrEqual, -255-1, -255+1)
+
 			So(mcu.i2cAddr, ShouldEqual, motor.address)
 			So(mcu.cmd, ShouldEqual, m_REG_POSITION)
 
 			mcu.value = int32(motor.rawHigh * 2)
 			pos, _ = motor.GetPosition()
-			So(pos, ShouldEqual, 255)
+			So(pos, ShouldBeBetweenOrEqual, 512-1, 512+1)
+
 		})
 
 		Convey("current state returns the expected values", func() {
@@ -343,17 +352,36 @@ func TestRMCS220xMotor(t *testing.T) {
 			state, err := motor.GetState()
 			So(err, ShouldBeNil)
 			So(state.Target, ShouldEqual, 123)
-			So(state.Current, ShouldEqual, 255)
+			So(state.Current, ShouldBeBetweenOrEqual, 255-1, 255+1)
+		})
+
+		Convey("test inverse scaling", func() {
+			inv := *motor
+			inv.rawLow = 3000
+			inv.rawHigh = -2550
+			var pos int
+
+			mcu.value = int32(inv.rawHigh)
+			pos, _ = inv.GetPosition()
+			So(pos, ShouldBeBetweenOrEqual, 255-1, 255+1)
+
+			mcu.value = int32(inv.rawLow)
+			pos, _ = inv.GetPosition()
+			So(pos, ShouldEqual, 0)
+
+			mcu.value = int32(inv.rawLow)
+			pos, _ = inv.GetPosition()
+			So(pos, ShouldEqual, 0)
 		})
 	})
 
-	SkipConvey("test homing", t, func() {
+	Convey("test homing", t, func() {
 		go motor.Home(0)
 		pos, _ := motor.GetPosition()
 		So(pos, ShouldBeGreaterThan, 0) // difficult to actually test so just check it is moving
 		time.Sleep(time.Second * 5)     // should be plenty of time
 		pos, _ = motor.GetPosition()
-		So(pos, ShouldEqual, 128) // we can confirm it has finished because it is at 0
+		So(pos, ShouldEqual, 138) // we can confirm it has finished because it is at 0
 	})
 }
 

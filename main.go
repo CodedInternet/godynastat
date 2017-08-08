@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"errors"
 	"flag"
 	"fmt"
 	. "github.com/CodedInternet/godynastat/onboard"
@@ -206,14 +207,11 @@ func main() {
 			Func: func(c *ishell.Context) {
 				name := string(c.Args[0])
 				c.Printf("Homing Motor %s\n", name)
-
-				motor, ok := dynastat.Motors[name]
-				if !ok {
-					log.Fatalf("Unable to find motor %s", name)
+				err := dynastat.HomeMotor(name)
+				if err != nil {
+					log.Fatal(err)
 					return
 				}
-
-				motor.Home(config.Motors[name].Cal)
 			},
 		})
 		shell.AddCmd(&ishell.Cmd{
@@ -296,17 +294,22 @@ func main() {
 				Completer: motorNames,
 				Func: func(c *ishell.Context) {
 					if len(c.Args) != 2 {
-						fmt.Errorf("Incorrect number of arguments. Usage: cal home <motor_name> <reverse>")
+						c.Err(errors.New("Incorrect number of arguments. Usage: cal home <motor_name> <reverse>"))
+						return
 					}
 					name := c.Args[0]
 					reverse, _ := strconv.ParseBool(c.Args[1])
 
 					c.ProgressBar().Indeterminate(true)
 					c.ProgressBar().Start()
-
-					dynastat.RecordMotorHome(name, reverse)
-
+					pos, err := dynastat.RecordMotorHome(name, reverse)
 					c.ProgressBar().Stop()
+
+					if err != nil {
+						c.Err(err)
+					}
+
+					c.Printf("Motor %s home located at %d\n", name, pos)
 				},
 			})
 
