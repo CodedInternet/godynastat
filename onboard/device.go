@@ -32,16 +32,20 @@ const (
 	s_BANK1_COLS  = 16
 	s_BANK2_COLS  = 8
 
+	// Switch MCU
+	sm_ADDRESS    = 0x20
+	sm_REG_ID     = 0x0000
+	sm_REG_VALUES = 0x0003
+	sm_KNOWN_ID   = 0xFE00
+
 	// Motor constants
 	m_BITS          = 8
 	m_REG_MAX_SPEED = 0
 	// m_REG_MANUAL      = 1
-	m_REG_DAMPING     = 2
-	m_REG_POSITION    = 3
-	m_REG_GOTO        = 4
-	m_REG_RELATIVE    = 8
-	m_CONTROL_ADDRESS = 0x20
-	m_CONTROL_REG     = 3
+	m_REG_DAMPING  = 2
+	m_REG_POSITION = 3
+	m_REG_GOTO     = 4
+	m_REG_RELATIVE = 8
 )
 
 type UARTMCU struct {
@@ -87,14 +91,19 @@ type SensorInterface interface {
 	GetState() SensorState
 }
 
+type SwitchMCU struct {
+	address int
+	bus     I2CBusInterface
+}
+
 type RMCS220xMotor struct {
-	bus        UARTMCUInterface
-	controlBus I2CBusInterface
-	address    int
-	control    uint16
-	rawLow     int
-	rawHigh    int
-	target     int
+	bus      UARTMCUInterface
+	switches *SwitchMCU
+	address  int
+	control  uint16
+	rawLow   int
+	rawHigh  int
+	target   int
 }
 
 type MotorState struct {
@@ -116,6 +125,7 @@ type Dynastat struct {
 	sensors   map[string]SensorInterface
 	SensorBus I2CBusInterface
 	motorBus  UARTMCUInterface
+	switches  *SwitchMCU
 	config    *DynastatConfig
 	lock      sync.Mutex
 }
@@ -188,7 +198,8 @@ func OpenUARTMCU(ttyName string) *UARTMCU {
 		BaudRate:              115200,
 		DataBits:              8,
 		StopBits:              1,
-		InterCharacterTimeout: 100,
+		InterCharacterTimeout: 200,
+		MinimumReadSize:       1,
 	})
 
 	if err != nil {
@@ -425,6 +436,33 @@ func (s *Sensor) GetState() (state SensorState) {
 	return state
 }
 
+// SwitchMCU
+
+// Creates a new object to reflect the onboard MCU that reads
+func NewSwitchMCU(bus I2CBusInterface, address int) (mcu *SwitchMCU, err error) {
+	// initialise object
+	mcu = new(SwitchMCU)
+	mcu.bus = bus
+	mcu.address = address
+
+	// check ID reads correctly
+	buf := make([]byte, 2)
+	mcu.bus.Get(address, sm_REG_ID, buf)
+	val := binary.LittleEndian.Uint16(buf)
+	if val != sm_KNOWN_ID {
+		err = errors.New(fmt.Sprintf("Switch MCU not recognised. Expected ID %x recieved %x", sm_KNOWN_ID, val))
+	}
+
+	return
+}
+
+func (mcu *SwitchMCU) ReadInput(target uint16) bool {
+	buf := make([]byte, 2)
+	mcu.bus.Get(mcu.address, sm_REG_VALUES, buf)
+	val := binary.LittleEndian.Uint16(buf)
+	return val&target == 0
+}
+
 // RMCS220xMotor
 
 // scalePos takes in a value and either scales it up to 16bit motor range or down to 0-255 application range.
@@ -456,14 +494,6 @@ func (m *RMCS220xMotor) writePosition(pos int32) {
 func (m *RMCS220xMotor) readPosition() (val int32, err error) {
 	val, err = m.bus.Get(m.address, m_REG_POSITION)
 	return
-}
-
-// readControl looks at the control pin for the Current motor and determines if it has been pressed.
-func (m *RMCS220xMotor) readControl() bool {
-	buf := make([]byte, 2)
-	m.controlBus.Get(m_CONTROL_ADDRESS, m_CONTROL_REG, buf)
-	val := binary.LittleEndian.Uint16(buf)
-	return val&m.control == 0
 }
 
 // SetTarget updates the Current Target in software and issues the write to the motor with the scaled value.
@@ -520,7 +550,7 @@ func (m *RMCS220xMotor) findHome(reverse bool) {
 		inc = -inc
 	}
 
-	for !m.readControl() {
+	for !m.switches.ReadInput(m.control) {
 		m.bus.Put(m.address, m_REG_RELATIVE, inc)
 		time.Sleep(time.Millisecond * time.Duration(inc*5))
 	}
@@ -528,12 +558,12 @@ func (m *RMCS220xMotor) findHome(reverse bool) {
 
 // NewRMCS220xMotor sets up all the necessary components to run a motor through the custom MCU.
 // Also sets up the onboard controller of the motor to include desired speed and damping parameters.
-func NewRMCS220xMotor(bus UARTMCUInterface, controlBus I2CBusInterface, control uint16,
+func NewRMCS220xMotor(bus UARTMCUInterface, switches *SwitchMCU, control uint16,
 	address, rawLow, rawHigh int, speed, damping int32) (motor *RMCS220xMotor) {
 
 	motor = new(RMCS220xMotor)
 	motor.bus = bus
-	motor.controlBus = controlBus
+	motor.switches = switches
 	motor.control = 1 << (control - 1)
 	motor.address = address
 	motor.rawLow = rawLow
@@ -559,11 +589,16 @@ func NewDynastat(config *DynastatConfig) (dynastat *Dynastat, err error) {
 		// Open COM ports
 		dynastat.SensorBus = OpenI2C(fmt.Sprintf("/dev/i2c-%d", config.I2CBus.Sensor))
 		dynastat.motorBus = OpenUARTMCU(config.UART.Motor)
+		dynastat.switches, err = NewSwitchMCU(dynastat.SensorBus, sm_ADDRESS)
+
+		if err != nil {
+			panic(err)
+		}
 
 		for name, conf := range config.Motors {
 			dynastat.Motors[name] = NewRMCS220xMotor(
 				dynastat.motorBus,
-				dynastat.SensorBus,
+				dynastat.switches,
 				conf.Control,
 				conf.Address,
 				conf.Low,
@@ -657,7 +692,7 @@ func (d *Dynastat) RecordMotorLow(name string) (err error) {
 	// recreate the motor with new values
 	motor = NewRMCS220xMotor(
 		d.motorBus,
-		d.SensorBus,
+		d.switches,
 		conf.Control,
 		conf.Address,
 		conf.Low,
@@ -692,7 +727,7 @@ func (d *Dynastat) RecordMotorHigh(name string) (err error) {
 	// recreate the motor with new values
 	motor = NewRMCS220xMotor(
 		d.motorBus,
-		d.SensorBus,
+		d.switches,
 		conf.Control,
 		conf.Address,
 		conf.Low,
@@ -729,7 +764,7 @@ func (d *Dynastat) RecordMotorHome(name string, reverse bool) (err error) {
 	// recreate the motor with new values
 	motor = NewRMCS220xMotor(
 		d.motorBus,
-		d.SensorBus,
+		d.switches,
 		conf.Control,
 		conf.Address,
 		conf.Low,
