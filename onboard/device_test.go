@@ -306,6 +306,28 @@ func TestRMCS220xMotor(t *testing.T) {
 				So(motor.switches.ReadInput(2), ShouldBeTrue)
 			})
 		})
+
+		Convey("raw commands", func() {
+			Convey("raw put", func() {
+				mcu.i2cAddr = -1
+				mcu.cmd = 255
+				mcu.value = -1
+				motor.putRaw(m_REG_POSITION, 784)
+				So(mcu.i2cAddr, ShouldEqual, motor.address)
+				So(mcu.cmd, ShouldEqual, m_REG_POSITION)
+				So(mcu.value, ShouldEqual, 784)
+			})
+
+			Convey("raw get", func() {
+				mcu.i2cAddr = -1
+				mcu.cmd = 255
+				mcu.value = 475
+				val, _ := motor.getRaw(m_REG_POSITION)
+				So(mcu.i2cAddr, ShouldEqual, motor.address)
+				So(mcu.cmd, ShouldEqual, m_REG_POSITION)
+				So(val, ShouldEqual, 475)
+			})
+		})
 	})
 
 	Convey("more advanced options with scaling", t, func() {
@@ -376,12 +398,27 @@ func TestRMCS220xMotor(t *testing.T) {
 	})
 
 	Convey("test homing", t, func() {
-		go motor.Home(0)
+		motor.SetTarget(0)
+		control.trigger = 3000
+		go motor.Home(int(control.trigger))
+		time.Sleep(time.Second / 2) // let it get started
 		pos, _ := motor.GetPosition()
 		So(pos, ShouldBeGreaterThan, 0) // difficult to actually test so just check it is moving
-		time.Sleep(time.Second * 5)     // should be plenty of time
+		time.Sleep(time.Second)
 		pos, _ = motor.GetPosition()
-		So(pos, ShouldEqual, 138) // we can confirm it has finished because it is at 0
+		So(pos, ShouldEqual, 163) // we can confirm it has finished because it is at raw 0
+
+		Convey("test in reverse", func() {
+			motor.SetTarget(255)
+			control.trigger = -3500
+			go motor.Home(int(control.trigger))
+			time.Sleep(time.Second / 2) // let it get started
+			pos, _ := motor.GetPosition()
+			So(pos, ShouldBeLessThan, 255) // difficult to actually test so just check it is moving
+			time.Sleep(time.Second)        // should be plenty of time
+			pos, _ = motor.GetPosition()
+			So(pos, ShouldEqual, 112) // we can confirm it has finished because it is at 0
+		})
 	})
 }
 

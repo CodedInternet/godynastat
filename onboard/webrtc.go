@@ -108,6 +108,9 @@ func (c *Conductor) ProcessCommand(cmd Cmd) {
 		c.Device.SetMotor(cmd.Name, cmd.Value)
 		break
 
+	case "home_motor":
+		c.Device.HomeMotor(cmd.Name)
+
 	case "motor_goto_raw":
 		c.Device.GotoMotorRaw(cmd.Name, cmd.Value)
 		break

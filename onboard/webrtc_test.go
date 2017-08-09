@@ -39,6 +39,61 @@ type mockClient struct {
 	open        chan bool
 }
 
+type mockDynastat struct {
+	lastCmd *Cmd
+}
+
+func (d *mockDynastat) GetState() (DynastatState, error) {
+	panic("[NotImplemented]")
+}
+
+func (d *mockDynastat) GetConfig() *DynastatConfig {
+	panic("[NotImplemented]")
+}
+
+func (d *mockDynastat) SetMotor(name string, position int) (err error) {
+	d.lastCmd = &Cmd{
+		"set_motor",
+		name,
+		position,
+	}
+	return nil
+}
+
+func (d *mockDynastat) HomeMotor(name string) error {
+	d.lastCmd = &Cmd{
+		"home_motor",
+		name,
+		0,
+	}
+	return nil
+}
+
+func (d *mockDynastat) GotoMotorRaw(name string, position int) error {
+	d.lastCmd = &Cmd{
+		"motor_goto_raw",
+		name,
+		position,
+	}
+	return nil
+}
+
+func (d *mockDynastat) WriteMotorRaw(name string, position int) error {
+	panic("[NotImplemented]")
+}
+
+func (d *mockDynastat) RecordMotorLow(name string) error {
+	panic("[NotImplemented]")
+}
+
+func (d *mockDynastat) RecordMotorHigh(name string) error {
+	panic("[NotImplemented]")
+}
+
+func (d *mockDynastat) RecordMotorHome(name string, reverse bool) (pos int, err error) {
+	panic("[NotImplemented]")
+}
+
 func TestWebRTCClient(t *testing.T) {
 	var err error
 	// Build our remote party
@@ -223,5 +278,37 @@ func TestConductor_ReceiveOffer(t *testing.T) {
 			So(client, ShouldBeNil)
 			So(err, ShouldNotBeNil)
 		})
+	})
+}
+
+func TestConductor(t *testing.T) {
+	device := new(mockDynastat)
+
+	conductor := Conductor{
+		Device: device,
+	}
+
+	Convey("processing command triggers the correct device method", t, func() {
+		cmd := &Cmd{
+			Name:  "TEST CMD",
+			Value: 123,
+		}
+
+		device.lastCmd = nil
+		cmd.Cmd = "set_motor"
+		conductor.ProcessCommand(*cmd)
+		So(device.lastCmd, ShouldResemble, cmd)
+
+		device.lastCmd = nil
+		cmd.Cmd = "motor_goto_raw"
+		conductor.ProcessCommand(*cmd)
+		So(device.lastCmd, ShouldResemble, cmd)
+
+		device.lastCmd = nil
+		cmd.Cmd = "home_motor"
+		conductor.ProcessCommand(*cmd)
+		cmd.Value = 0 // hard coded in mockDynastat, change for test
+		So(device.lastCmd, ShouldResemble, cmd)
+		cmd.Value = 123 // reset back in case we use it again later
 	})
 }
