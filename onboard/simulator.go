@@ -23,7 +23,7 @@ type SimulatedMotor struct {
 }
 
 func (s *SimulatedSensor) SetScale(zero, half, full uint16) {
-	fmt.Errorf("SetScale is not implemented nor required on SimulatedSensor")
+	panic("[NotImplemented][SimulatedSensor] SetScale is not implemented nor required on SimulatedSensor")
 }
 
 func (s *SimulatedSensor) GetValue(row, col int) uint8 {
@@ -88,18 +88,15 @@ func (m *SimulatedMotor) GetState() (state MotorState, err error) {
 }
 
 func (m *SimulatedMotor) getRaw(reg uint8) (int, error) {
-	fmt.Errorf("[ERROR][NotImplemented][SimulatedMotor] getRaw not implemented in SimulatedMotor\n")
-	return 0, nil
+	panic("[NotImplemented][SimulatedMotor] getRaw not implemented in SimulatedMotor")
 }
 
 func (m *SimulatedMotor) putRaw(reg uint8, val int) {
-	fmt.Errorf("[ERROR][NotImplemented][SimulatedMotor] putRaw not implemented in SimulatedMotor\n")
-	return
+	panic("[NotImplemented][SimulatedMotor] putRaw not implemented in SimulatedMotor")
 }
 
 func (m *SimulatedMotor) findHome(reverse bool) {
-	fmt.Errorf("[ERROR][NotImplemented][SimulatedMotor] findHome not implemented in SimulatedMotor\n")
-	return
+	panic("[NotImplemented][SimulatedMotor] findHome not implemented in SimulatedMotor")
 }
 
 func (m *SimulatedMotor) update() {
