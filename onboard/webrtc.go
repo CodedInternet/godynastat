@@ -109,7 +109,11 @@ func (c *Conductor) ProcessCommand(cmd Cmd) {
 		break
 
 	case "home_motor":
-		c.Device.HomeMotor(cmd.Name)
+		err := c.Device.HomeMotor(cmd.Name)
+		if err != nil {
+			fmt.Errorf("%s\n", err)
+		}
+		break
 
 	case "motor_goto_raw":
 		c.Device.GotoMotorRaw(cmd.Name, cmd.Value)

@@ -648,8 +648,6 @@ func (d *Dynastat) HomeMotor(name string) error {
 	if ok == false {
 		return errors.New(fmt.Sprintf("Unable to find motor %s", name))
 	}
-	cal := d.config.Motors[name].Cal
-	fmt.Printf("Homing motor %s to %d (%b)\n", name, cal, cal < 0)
 	motor.Home(d.config.Motors[name].Cal)
 	return nil
 }
