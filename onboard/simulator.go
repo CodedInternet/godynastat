@@ -44,14 +44,7 @@ func (s *SimulatedSensor) GetState() (state SensorState) {
 func (s *SimulatedSensor) update() {
 	for {
 		for i := 0; i < len(s.values); i++ {
-			val := s.values[i]
-			delta := rand.Intn(SENSOR_DELTA*2) - SENSOR_DELTA
-			if delta < 0 {
-				val = val - uint8(delta)
-			} else {
-				val = val + uint8(delta)
-			}
-			s.values[i] = val
+			s.values[i] += uint8(rand.Intn(SENSOR_DELTA*2) - SENSOR_DELTA)
 		}
 		time.Sleep(SENSOR_INTERVAL)
 	}
