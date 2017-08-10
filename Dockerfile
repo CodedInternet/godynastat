@@ -4,6 +4,7 @@ RUN npm install --global yarn ember-cli
 
 # Add source and copy checkout frontend submodule
 WORKDIR /usr/src/app/
+RUN rm -rf /usr/src/app/
 RUN git clone https://github.com/CodedInternet/dynastat-frontend.git .
 WORKDIR /usr/src/app/
 
