@@ -35,7 +35,11 @@ func (s *SimulatedSensor) GetState() (state SensorState) {
 	for i := 0; i < s.rows; i++ {
 		state[i] = make([]uint8, s.cols)
 		for j := 0; j < s.cols; j++ {
-			state[i][j] = s.GetValue(i, j)
+			if i == j {
+				state[i][j] = 0
+			} else {
+				state[i][j] = s.GetValue(i, j)
+			}
 		}
 	}
 	return state

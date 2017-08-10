@@ -4,6 +4,7 @@ import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/yaml.v2"
+	"math"
 	"testing"
 	"time"
 )
@@ -33,7 +34,7 @@ func TestSimulatedSensor(t *testing.T) {
 				}
 			}
 
-			So(zeros, ShouldBeLessThan, 5)
+			So(zeros, ShouldBeLessThan, math.Max(rows, cols)+5)
 		})
 
 		Convey("Setting scale panics", func() {
