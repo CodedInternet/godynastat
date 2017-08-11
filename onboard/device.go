@@ -41,11 +41,11 @@ const (
 	// Motor constants
 	m_BITS          = 8
 	m_REG_MAX_SPEED = 0
-	// m_REG_MANUAL      = 1
-	m_REG_DAMPING  = 2
-	m_REG_POSITION = 3
-	m_REG_GOTO     = 4
-	m_REG_RELATIVE = 8
+	m_REG_MANUAL    = 1
+	m_REG_DAMPING   = 2
+	m_REG_POSITION  = 3
+	m_REG_GOTO      = 4
+	m_REG_RELATIVE  = 8
 )
 
 type UARTMCU struct {
@@ -113,11 +113,11 @@ type MotorState struct {
 type MotorInterface interface {
 	SetTarget(target int)
 	GetPosition() (position int, err error)
-	Home(calibrationValue int)
+	Home(calibrationValue int) error
 	GetState() (state MotorState, err error)
 	getRaw(reg uint8) (int, error)
 	putRaw(reg uint8, val int)
-	findHome(reverse bool)
+	findHome(reverse bool) error
 }
 
 type Dynastat struct {
@@ -450,17 +450,20 @@ func NewSwitchMCU(bus I2CBusInterface, address int) (mcu *SwitchMCU, err error) 
 	mcu.bus.Get(address, sm_REG_ID, buf)
 	val := binary.LittleEndian.Uint16(buf)
 	if val != sm_KNOWN_ID {
-		err = errors.New(fmt.Sprintf("Switch MCU not recognised. Expected ID %x recieved %x", sm_KNOWN_ID, val))
+		return nil, errors.New(fmt.Sprintf("Switch MCU not recognised. Expected ID %x recieved %x", sm_KNOWN_ID, val))
 	}
 
 	return
 }
 
-func (mcu *SwitchMCU) ReadInput(target uint16) bool {
+func (mcu *SwitchMCU) ReadInput(target uint16) (bool, error) {
 	buf := make([]byte, 2)
 	mcu.bus.Get(mcu.address, sm_REG_VALUES, buf)
 	val := binary.LittleEndian.Uint16(buf)
-	return val&target == 0
+	if val == 0 {
+		return true, errors.New("Switch MCU reported value of 0")
+	}
+	return val&target == 0, nil
 }
 
 // RMCS220xMotor
@@ -505,8 +508,11 @@ func (m *RMCS220xMotor) GetPosition() (val int, err error) {
 // Home gradually moves the motor until it is pressing its home pin.
 // To avoid crashes being potentially destructive to hardware, this in done in small increments so the motor will not
 // continue unless the software deems it safe and reissues the move command.
-func (m *RMCS220xMotor) Home(cal int) {
-	m.findHome(cal < 0)
+func (m *RMCS220xMotor) Home(cal int) (err error) {
+	err = m.findHome(cal < 0)
+	if err != nil {
+		return err
+	}
 
 	m.bus.Put(m.address, m_REG_POSITION, int32(cal))
 
@@ -533,7 +539,11 @@ func (m *RMCS220xMotor) putRaw(reg uint8, val int) {
 	m.bus.Put(m.address, reg, int32(val))
 }
 
-func (m *RMCS220xMotor) findHome(reverse bool) {
+func (m *RMCS220xMotor) findHome(reverse bool) (err error) {
+	if m.switches == nil {
+		return errors.New("Control switches not found")
+	}
+
 	inc := int32(math.Abs(float64(m.rawHigh-m.rawLow))) / 10
 
 	if reverse {
@@ -541,10 +551,14 @@ func (m *RMCS220xMotor) findHome(reverse bool) {
 		inc = -inc
 	}
 
-	for !m.switches.ReadInput(m.control) {
+	var home bool
+	for ; !home && err == nil; home, err = m.switches.ReadInput(m.control) {
 		m.bus.Put(m.address, m_REG_RELATIVE, inc)
-		time.Sleep(time.Millisecond * time.Duration(inc*5))
+		time.Sleep(time.Millisecond * 5)
 	}
+	// all stop
+	m.bus.Put(m.address, m_REG_MANUAL, 0)
+	return
 }
 
 // NewRMCS220xMotor sets up all the necessary components to run a motor through the custom MCU.
@@ -580,10 +594,11 @@ func NewDynastat(config *DynastatConfig) (dynastat *Dynastat, err error) {
 		// Open COM ports
 		dynastat.SensorBus = OpenI2C(fmt.Sprintf("/dev/i2c-%d", config.I2CBus.Sensor))
 		dynastat.motorBus = OpenUARTMCU(config.UART.Motor)
-		dynastat.switches, err = NewSwitchMCU(dynastat.SensorBus, sm_ADDRESS)
 
+		dynastat.switches, err = NewSwitchMCU(dynastat.SensorBus, sm_ADDRESS)
 		if err != nil {
-			panic(err)
+			fmt.Errorf("Unable to proceed with homing: %s", err)
+			dynastat.switches = nil
 		}
 
 		for name, conf := range config.Motors {
@@ -643,13 +658,13 @@ func (d *Dynastat) SetMotor(name string, position int) (err error) {
 	return nil
 }
 
-func (d *Dynastat) HomeMotor(name string) error {
+func (d *Dynastat) HomeMotor(name string) (err error) {
 	motor, ok := d.Motors[name]
 	if ok == false {
 		return errors.New(fmt.Sprintf("Unable to find motor %s", name))
 	}
-	motor.Home(d.config.Motors[name].Cal)
-	return nil
+	err = motor.Home(d.config.Motors[name].Cal)
+	return
 }
 
 func (d *Dynastat) GotoMotorRaw(name string, position int) (err error) {

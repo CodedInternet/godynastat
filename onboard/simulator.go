@@ -1,6 +1,7 @@
 package onboard
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -73,9 +74,9 @@ func (m *SimulatedMotor) GetPosition() (position int, err error) {
 	return m.current, nil
 }
 
-func (m *SimulatedMotor) Home(calibrationValue int) {
+func (m *SimulatedMotor) Home(calibrationValue int) error {
 	fmt.Printf("Homing to %d \n", calibrationValue)
-	return
+	return nil
 }
 
 func (m *SimulatedMotor) GetState() (state MotorState, err error) {
@@ -92,8 +93,8 @@ func (m *SimulatedMotor) putRaw(reg uint8, val int) {
 	panic("[NotImplemented][SimulatedMotor] putRaw not implemented in SimulatedMotor")
 }
 
-func (m *SimulatedMotor) findHome(reverse bool) {
-	panic("[NotImplemented][SimulatedMotor] findHome not implemented in SimulatedMotor")
+func (m *SimulatedMotor) findHome(reverse bool) error {
+	return errors.New("[NotImplemented][SimulatedMotor] findHome not implemented in SimulatedMotor")
 }
 
 func (m *SimulatedMotor) update() {

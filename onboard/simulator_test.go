@@ -97,7 +97,8 @@ func TestSimulatedMotor(t *testing.T) {
 	Convey("Not implemented methods panic correctly", t, func() {
 		So(func() { motor.getRaw(4) }, ShouldPanic)
 		So(func() { motor.putRaw(4, 28) }, ShouldPanic)
-		So(func() { motor.findHome(true) }, ShouldPanic)
+		err := motor.findHome(true)
+		So(err, ShouldNotBeNil)
 	})
 }
 

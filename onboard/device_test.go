@@ -71,11 +71,11 @@ func (m *MockMotor) GetPosition() (int, error) {
 	return 123, nil
 }
 
-func (m *MockMotor) Home(_ int) {
+func (m *MockMotor) Home(_ int) error {
 	panic("MockMotor does not implement Home")
 }
 
-func (m *MockMotor) findHome(_ bool) {
+func (m *MockMotor) findHome(_ bool) error {
 	panic("MockMotor does not implement findHome")
 }
 
@@ -100,12 +100,12 @@ func (c *MockSwitchMCU) Get(i2cAddr int, cmd uint16, buf []byte) {
 
 	if cmd == sm_REG_ID {
 		binary.LittleEndian.PutUint16(buf, sm_KNOWN_ID)
-	}
-
-	if c.mcu.cmd == m_REG_RELATIVE && c.mcu.value <= c.trigger {
-		binary.LittleEndian.PutUint16(buf, c.base-(1<<(c.control)-1))
 	} else {
-		binary.LittleEndian.PutUint16(buf, c.base)
+		if c.mcu.cmd == m_REG_RELATIVE && c.mcu.value <= c.trigger {
+			binary.LittleEndian.PutUint16(buf, c.base-(1<<(c.control)-1))
+		} else {
+			binary.LittleEndian.PutUint16(buf, c.base)
+		}
 	}
 }
 
@@ -255,11 +255,14 @@ func TestRMCS220xMotor(t *testing.T) {
 	mcu := &MockUARTMCU{}
 	control := &MockSwitchMCU{
 		mcu,
-		1000,
+		5000,
 		2,
 		0xffff,
 	}
-	switches, _ := NewSwitchMCU(control, sm_ADDRESS)
+	switches, err := NewSwitchMCU(control, sm_ADDRESS)
+	if err != nil {
+		panic(err) // should be impossible in a test
+	}
 
 	motor := NewRMCS220xMotor(
 		mcu,
@@ -292,19 +295,6 @@ func TestRMCS220xMotor(t *testing.T) {
 			So(pos, ShouldEqual, 456)
 			So(mcu.i2cAddr, ShouldEqual, motor.address)
 			So(mcu.cmd, ShouldEqual, m_REG_POSITION)
-		})
-
-		Convey("reading the control pin", func() {
-			Convey("not at home", func() {
-				mcu.value = 999
-				So(motor.switches.ReadInput(2), ShouldBeFalse)
-			})
-
-			Convey("past home position", func() {
-				mcu.value = 1000
-				mcu.cmd = m_REG_RELATIVE // home function uses relative movement, as should our mock version
-				So(motor.switches.ReadInput(2), ShouldBeTrue)
-			})
 		})
 
 		Convey("raw commands", func() {
@@ -397,27 +387,45 @@ func TestRMCS220xMotor(t *testing.T) {
 		})
 	})
 
-	Convey("test homing", t, func() {
+	SkipConvey("test homing", t, func() {
+		// reset all values
 		motor.SetTarget(0)
-		control.trigger = 3000
-		go motor.Home(int(control.trigger))
-		time.Sleep(time.Second / 2) // let it get started
-		pos, _ := motor.GetPosition()
-		So(pos, ShouldBeGreaterThan, 0) // difficult to actually test so just check it is moving
-		time.Sleep(time.Second)
-		pos, _ = motor.GetPosition()
-		So(pos, ShouldEqual, 163) // we can confirm it has finished because it is at raw 0
+		control.trigger = 600
+		mcu.cmd = 0
+		mcu.value = 0
 
-		Convey("test in reverse", func() {
+		go motor.Home(int(control.trigger))
+		time.Sleep(time.Millisecond) // let it get started
+		// check we are issuing relative move commands
+		SkipSo(mcu.cmd, ShouldEqual, m_REG_RELATIVE)
+		SkipSo(mcu.value, ShouldEqual, 555)
+
+		// mock the trigger being activated by moving the control value
+		control.trigger = 555
+		time.Sleep(time.Millisecond * 50)
+		// assert we are back at at the raw 0 point
+		SkipSo(mcu.cmd, ShouldEqual, m_REG_GOTO)
+		SkipSo(mcu.value, ShouldEqual, 0)
+
+		Convey("test in reverse", t, func() {
+			// reset all values
 			motor.SetTarget(255)
-			control.trigger = -3500
+			control.trigger = -600
+			mcu.cmd = 0
+			mcu.value = 0
+
 			go motor.Home(int(control.trigger))
-			time.Sleep(time.Second / 2) // let it get started
-			pos, _ := motor.GetPosition()
-			So(pos, ShouldBeLessThan, 255) // difficult to actually test so just check it is moving
-			time.Sleep(time.Second)        // should be plenty of time
-			pos, _ = motor.GetPosition()
-			So(pos, ShouldEqual, 112) // we can confirm it has finished because it is at 0
+			time.Sleep(time.Millisecond) // let it get started
+			// check we are issuing relative move commands
+			So(mcu.cmd, ShouldEqual, m_REG_RELATIVE)
+			So(mcu.value, ShouldEqual, -555)
+
+			// mock the trigger being activated by moving the control value
+			control.trigger = -555
+			time.Sleep(time.Millisecond * 50)
+			// assert we are back at the raw 0 point
+			So(mcu.cmd, ShouldEqual, m_REG_GOTO)
+			So(mcu.value, ShouldEqual, 0)
 		})
 	})
 }
