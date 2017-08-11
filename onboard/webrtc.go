@@ -40,7 +40,12 @@ func NewWebRTCClient(
 	client = new(WebRTCClient)
 
 	config := webrtc.NewConfiguration(
+		webrtc.OptionIceServer("stun:stun.stunprotocol.org"),
 		webrtc.OptionIceServer("stun:stun.l.google.com:19302"),
+		webrtc.OptionIceServer("stun:stun1.l.google.com:19302"),
+		webrtc.OptionIceServer("stun:stun2.l.google.com:19302"),
+		webrtc.OptionIceServer("stun:stun3.l.google.com:19302"),
+		webrtc.OptionIceServer("stun:stun4.l.google.com:19302"),
 	)
 	client.pc, err = webrtc.NewPeerConnection(config)
 	if err != nil {
