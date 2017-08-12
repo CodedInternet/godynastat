@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/CodedInternet/godynastat/onboard"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
@@ -36,6 +39,7 @@ func EchoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func WebRTCSignalHandler(w http.ResponseWriter, r *http.Request) {
+	var client *onboard.WebRTCClient
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
@@ -53,17 +57,38 @@ func WebRTCSignalHandler(w http.ResponseWriter, r *http.Request) {
 	}(conn, msgs)
 
 	for {
-		_, msg, err := conn.ReadMessage()
+		_, msgb, err := conn.ReadMessage()
 		if err != nil {
 			log.Println("read:", err)
 			break
 		}
+		msg := string(msgb)
 
 		// artificially add a delay for the simulated device so we can mock some network transactions going on
 		if ENV.Simulated {
-			time.Sleep(time.Second * 2)
+			time.Sleep(time.Second / 2)
 		}
 
-		ENV.Conductor.ReceiveOffer(string(msg), msgs)
+		var parsed map[string]interface{}
+		err = json.Unmarshal(msgb, &parsed)
+		if nil != err {
+			fmt.Errorf("%s\n", err)
+		}
+
+		if _, ok := parsed["type"]; ok {
+			client, err = ENV.Conductor.ReceiveOffer(msg, msgs)
+			if err != nil {
+				fmt.Errorf("%s\n", err)
+				return
+			}
+		} else if _, ok := parsed["candidate"]; ok {
+			if client != nil {
+				client.AddIceCandidate(msg)
+			} else {
+				fmt.Errorf("Received candidate before client is established")
+			}
+		} else {
+			fmt.Errorf("Received unkown candidate")
+		}
 	}
 }

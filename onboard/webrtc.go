@@ -56,9 +56,6 @@ func NewWebRTCClient(
 	client.pc.OnIceCandidate = func(c webrtc.IceCandidate) {
 		signals <- c.Serialize()
 	}
-	client.pc.OnIceComplete = func() {
-		signals <- client.pc.LocalDescription().Serialize()
-	}
 
 	client.pc.OnDataChannel = func(channel *webrtc.DataChannel) {
 		label := channel.Label()
@@ -95,6 +92,17 @@ func NewWebRTCClient(
 	}()
 
 	return
+}
+
+func (client *WebRTCClient) AddIceCandidate(msg string) error {
+	ic := webrtc.DeserializeIceCandidate(msg)
+	if ic == nil {
+		return errors.New("Unable to deserialize ice msg")
+	}
+
+	client.pc.AddIceCandidate(*ic)
+	fmt.Printf("added ice candidate: %s", ic)
+	return nil
 }
 
 func (client *WebRTCClient) receiveMessage(msg []byte) {
