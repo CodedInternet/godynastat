@@ -279,6 +279,7 @@ func TestRMCS220xMotor(t *testing.T) {
 		So(mcu.i2cAddr, ShouldEqual, motor.address)
 		So(mcu.cmd, ShouldEqual, m_REG_DAMPING)
 		So(mcu.value, ShouldEqual, 42)
+		So(motor.target, ShouldEqual, 138) // should be a raw value of 0
 	})
 
 	Convey("basic operations", t, func() {

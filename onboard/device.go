@@ -574,6 +574,9 @@ func NewRMCS220xMotor(bus UARTMCUInterface, switches *SwitchMCU, control uint16,
 	motor.rawLow = rawLow
 	motor.rawHigh = rawHigh
 
+	// calculate target and set to a raw value of zero
+	motor.target = motor.scalePos(0, false)
+
 	motor.bus.Put(motor.address, m_REG_MAX_SPEED, speed)
 	motor.bus.Put(motor.address, m_REG_DAMPING, damping)
 	return

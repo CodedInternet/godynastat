@@ -136,7 +136,7 @@ func NewDynastatSimulator(config *DynastatConfig) (dynastat *Dynastat) {
 		}
 
 		for name := range config.Motors {
-			m := &SimulatedMotor{name: name}
+			m := &SimulatedMotor{name: name, target: 127}
 			go m.update()
 			dynastat.Motors[name] = m
 		}
