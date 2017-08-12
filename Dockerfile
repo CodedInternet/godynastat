@@ -4,9 +4,10 @@ RUN npm install --global yarn ember-cli
 
 # Add source and copy checkout frontend submodule
 WORKDIR /usr/src/app/
-RUN rm -rf /usr/src/app/
+# Create a directory for the cache buster to use and copy it
+RUN mkdir /usr/src/goapp/
+COPY . /usr/src/goapp/
 RUN git clone https://github.com/CodedInternet/dynastat-frontend.git .
-WORKDIR /usr/src/app/
 
 # Install depenandcies
 RUN yarn
