@@ -9,9 +9,9 @@ uart:
 motors:
   left_foot_size:
     address: 0x10
-    cal: -82500
-    low: 20000
-    high: -60000
+    cal: -105000
+    low: 10000
+    high: -100000
     speed: 255
     damping: 255
     control: 2
@@ -50,9 +50,9 @@ motors:
 
   right_foot_size:
     address: 0x20
-    cal: -82500
-    low: 20000
-    high: -60000
+    cal: -105000
+    low: 10000
+    high: -100000
     speed: 255
     damping: 127
     control: 1
