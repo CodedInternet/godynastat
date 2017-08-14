@@ -1,11 +1,12 @@
 FROM resin/beaglebone-black-node:6 as frontend
 
+RUN apt update && apt install -y jq
 RUN npm install --global yarn ember-cli
 
 # Add source and copy checkout frontend submodule
 WORKDIR /usr/src/app/
-RUN echo "Building started: $(date)" && env
-RUN git clone https://github.com/CodedInternet/dynastat-frontend.git .
+ADD frontend.sh /usr/src/
+RUN /usr/src/frontend.sh
 
 # Install depenandcies
 RUN yarn
