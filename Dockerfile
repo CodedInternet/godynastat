@@ -22,6 +22,9 @@ ENV HTMLDIR $GOPATH/html
 # get the godep tool
 RUN go get -u github.com/golang/dep/cmd/dep
 
+# install minicom for debugging purposes
+RUN apt update && apt install minicom
+
 # Add souce files
 COPY . $SRCDIR
 
