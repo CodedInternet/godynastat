@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	FRAMERATE = 20
+	FRAMERATE = 30
 	i2c_SLAVE = 0x0703
 
 	sb_REG_VALUES = 0x0100
