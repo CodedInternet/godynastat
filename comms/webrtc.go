@@ -1,4 +1,4 @@
-package onboard
+package comms
 
 import (
 	"encoding/json"
@@ -8,6 +8,8 @@ import (
 	"github.com/keroserene/go-webrtc"
 	"io"
 	"time"
+	"github.com/CodedInternet/godynastat/onboard"
+	"github.com/CodedInternet/godynastat/vendor/github.com/keroserene/go-webrtc"
 )
 
 type WebRTCClient struct {
@@ -23,7 +25,7 @@ type Cmd struct {
 }
 
 type Conductor struct {
-	Device           DynastatInterface
+	Device           onboard.DynastatInterface
 	clients          []*WebRTCClient
 	signalingServers []*websocket.Conn
 }
@@ -174,7 +176,7 @@ func (c *Conductor) UpdateClients() {
 			}
 		}
 
-		time.Sleep(time.Second / FRAMERATE)
+		time.Sleep(time.Second / onboard.FRAMERATE)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	. "github.com/CodedInternet/godynastat/onboard"
+	"github.com/CodedInternet/godynastat/comms"
 	"github.com/abiosoft/ishell"
 	"github.com/asdine/storm"
 	"github.com/caarlos0/env"
@@ -28,7 +29,7 @@ type EnvConfig struct {
 	SRCDIR     string `env:"SRCDIR" envDefault:"."`
 	HTMLDIR    string `env:"HTMLDIR" envDefault:"./frontend/dist/"`
 	DB         *storm.DB
-	Conductor  *Conductor
+	Conductor  *comms.Conductor
 	Simulated  bool
 }
 
@@ -126,7 +127,7 @@ func main() {
 		}
 	}
 
-	ENV.Conductor = new(Conductor)
+	ENV.Conductor = new(comms.Conductor)
 	ENV.Conductor.Device = dynastat
 
 	go ENV.Conductor.UpdateClients()

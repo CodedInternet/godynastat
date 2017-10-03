@@ -1,4 +1,4 @@
-package onboard
+package comms
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 	"time"
+	"github.com/CodedInternet/godynastat/onboard"
 )
 
 type mockConductor struct {
@@ -43,11 +44,11 @@ type mockDynastat struct {
 	lastCmd *Cmd
 }
 
-func (d *mockDynastat) GetState() (DynastatState, error) {
+func (d *mockDynastat) GetState() (onboard.DynastatState, error) {
 	panic("[NotImplemented]")
 }
 
-func (d *mockDynastat) GetConfig() *DynastatConfig {
+func (d *mockDynastat) GetConfig() *onboard.DynastatConfig {
 	panic("[NotImplemented]")
 }
 

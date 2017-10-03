@@ -3,11 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/CodedInternet/godynastat/onboard"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"time"
+	"github.com/CodedInternet/godynastat/comms"
 )
 
 var upgrader = websocket.Upgrader{
@@ -39,7 +39,7 @@ func EchoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func WebRTCSignalHandler(w http.ResponseWriter, r *http.Request) {
-	var client *onboard.WebRTCClient
+	var client *comms.WebRTCClient
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
