@@ -88,14 +88,14 @@
 [[projects]]
   name = "github.com/smartystreets/assertions"
   packages = [".","internal/go-render/render","internal/oglematchers"]
-  revision = "e9a2f6771d97c709b2f7609fdf89ebde8b64c926"
-  version = "1.6.0"
+  revision = "ff1918e1e5a13a74014644ae7c1e0ba2f791364d"
+  version = "1.8.0"
 
 [[projects]]
   name = "github.com/smartystreets/goconvey"
   packages = ["convey","convey/gotest","convey/reporting"]
-  revision = "d4c757aa9afd1e2fc1832aaab209b5794eb336e1"
-  version = "1.6.2"
+  revision = "9e8dc3f972df6c8fcc0375ef492c24d0bb204857"
+  version = "1.6.3"
 
 [[projects]]
   name = "github.com/tinylib/msgp"
