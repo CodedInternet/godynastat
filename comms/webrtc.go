@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/CodedInternet/godynastat/calcs"
+	"github.com/CodedInternet/godynastat/onboard"
 	"github.com/gorilla/websocket"
 	"github.com/keroserene/go-webrtc"
 	"io"
 	"time"
-	"github.com/CodedInternet/godynastat/onboard"
 )
 
 type WebRTCClient struct {
@@ -165,7 +166,17 @@ func (c *Conductor) UpdateClients() {
 				panic(err)
 			}
 		}
-		msg, err := json.Marshal(state)
+		payload := StatePayload{
+			state,
+			make(map[string]Centroid),
+		}
+
+		for name, readings := range state.Sensors {
+			x, y := calcs.SensorCentroid(readings)
+			payload.Centroids[name] = Centroid{x, y}
+		}
+
+		msg, err := json.Marshal(payload)
 		if err != nil {
 			panic(err)
 		}
