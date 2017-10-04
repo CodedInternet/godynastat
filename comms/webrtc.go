@@ -9,7 +9,6 @@ import (
 	"io"
 	"time"
 	"github.com/CodedInternet/godynastat/onboard"
-	"github.com/CodedInternet/godynastat/vendor/github.com/keroserene/go-webrtc"
 )
 
 type WebRTCClient struct {
@@ -103,7 +102,7 @@ func (client *WebRTCClient) AddIceCandidate(msg string) error {
 	}
 
 	client.pc.AddIceCandidate(*ic)
-	fmt.Printf("added ice candidate: %s", ic)
+	fmt.Printf("added ice candidate: %s\n", ic)
 	return nil
 }
 
@@ -166,13 +165,13 @@ func (c *Conductor) UpdateClients() {
 				panic(err)
 			}
 		}
-		msg, err := state.MarshalMsg(nil)
+		msg, err := json.Marshal(state)
 		if err != nil {
 			panic(err)
 		}
 		for _, client := range c.clients {
 			if client.tx != nil && client.tx.ReadyState() == webrtc.DataStateOpen {
-				client.tx.Send(msg)
+				client.tx.SendText(string(msg))
 			}
 		}
 

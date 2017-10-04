@@ -80,12 +80,6 @@
   revision = "04a13d6459d36f9e18b3cb88bf3cd264feb399ae"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/philhofer/fwd"
-  packages = ["."]
-  revision = "1612a298117663d7bc9a760ae20d383413859798"
-
-[[projects]]
   name = "github.com/smartystreets/assertions"
   packages = [".","internal/go-render/render","internal/oglematchers"]
   revision = "ff1918e1e5a13a74014644ae7c1e0ba2f791364d"
@@ -96,12 +90,6 @@
   packages = ["convey","convey/gotest","convey/reporting"]
   revision = "9e8dc3f972df6c8fcc0375ef492c24d0bb204857"
   version = "1.6.3"
-
-[[projects]]
-  name = "github.com/tinylib/msgp"
-  packages = ["msgp"]
-  revision = "b2b6a672cf1e5b90748f79b8b81fc8c5cf0571a1"
-  version = "1.0.2"
 
 [[projects]]
   branch = "master"
@@ -130,6 +118,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3072acf81097442386f3358f6f95961a195c6e0721580e55408feadddf18ca65"
+  inputs-digest = "2425bd5cb373d15bb5fdbfda4954006304ca2b6e8d1ac1d27adbe050e3e958d3"
   solver-name = "gps-cdcl"
   solver-version = 1
