@@ -13,6 +13,7 @@ import (
 	"github.com/jacobsa/go-serial/serial"
 	"io"
 	"math"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -48,13 +49,15 @@ const (
 )
 
 type UARTMCU struct {
-	port io.ReadWriteCloser
-	lock sync.Mutex
+	devices []int
+	port    io.ReadWriteCloser
+	lock    sync.Mutex
 }
 
 type UARTMCUInterface interface {
 	Put(i2cAddr int, cmd uint8, value int32)
 	Get(i2cAddr int, cmd uint8) (value int32, err error)
+	connected(i2cAddr int) bool
 }
 
 type I2CBus struct {
@@ -205,6 +208,8 @@ func OpenUARTMCU(ttyName string) *UARTMCU {
 	}
 	mcu := new(UARTMCU)
 	mcu.port = port
+
+	mcu.scan() // pre-populate the list of connected devices
 	return mcu
 }
 
@@ -246,6 +251,63 @@ func (mcu *UARTMCU) Get(i2cAddr int, cmd uint8) (value int32, err error) {
 
 	fmt.Sscanf(string(rbuf), "%d", &value)
 	return
+}
+
+func (mcu *UARTMCU) scan() (err error) {
+	rbuf := make([]byte, 120)
+
+	mcu.lock.Lock()
+	defer mcu.lock.Unlock()
+	mcu.port.Write([]byte("S\n"))
+	i, err := mcu.port.Read(rbuf)
+	if err != nil {
+		return err
+	}
+	if i == 0 {
+		return errors.New("did not detect any motors connected")
+	}
+
+	resp := string(rbuf)
+	for i, m := range strings.Split(resp, "\n") {
+		hex := 0
+		dec := 0
+
+		fmt.Sscanf(m, "%x (%d)", &hex, &dec)
+
+		// check we have read something
+		if hex == 0 || dec == 0 {
+			return errors.New(fmt.Sprintf("no digit detected on line %d", i))
+		}
+
+		// sanity check the two values are the same
+		if hex != dec {
+			return errors.New(fmt.Sprintf("hex value %x did not match deciaml value %d", hex, dec))
+		}
+
+		// add to the devices list
+		mcu.devices = append(mcu.devices, hex)
+	}
+
+	return
+}
+
+func (mcu *UARTMCU) connected(i2cAddr int) bool {
+	for _, i := range mcu.devices {
+		if i == i2cAddr {
+			return true
+		}
+	}
+
+	// we haven't found it, but that could just be out of date, try updating and checking again
+	mcu.scan()
+	for _, i := range mcu.devices {
+		if i == i2cAddr {
+			return true
+		}
+	}
+
+	// still haven't found it, probably isn't connected
+	return false
 }
 
 // I2C related functions

@@ -50,6 +50,13 @@ func (b *MockUARTMCU) Get(i2cAddr int, cmd uint8) (value int32, err error) {
 	return b.value, nil
 }
 
+func (b *MockUARTMCU) connected(i2cAddr int) bool {
+	if i2cAddr == 0x42 {
+		return false
+	}
+	return true
+}
+
 type MockSwitchMCU struct {
 	mcu     *MockUARTMCU
 	trigger int32
