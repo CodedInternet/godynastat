@@ -65,7 +65,8 @@ type MockSwitchMCU struct {
 }
 
 type MockMotor struct {
-	target int
+	target  int
+	enabled bool
 }
 
 func (m *MockMotor) SetTarget(target int) {
@@ -85,6 +86,10 @@ func (m *MockMotor) findHome(_ bool) error {
 }
 
 func (m *MockMotor) GetState() (state MotorState, err error) {
+	if !m.enabled {
+		return state, M_ERR_DISABLED
+	}
+
 	state.Target = m.target
 	state.Current = m.target
 	return
@@ -434,10 +439,30 @@ func TestRMCS220xMotor(t *testing.T) {
 			So(mcu.value, ShouldEqual, 0)
 		})
 	})
+
+	Convey("check what happens when the motor is disabled", t, func() {
+		motor.enabled = false
+
+		Convey("GetPosition returns appropriate error", func() {
+			_, err := motor.GetPosition()
+			So(err, ShouldBeError, M_ERR_DISABLED)
+		})
+
+		Convey("Home returns appropriate error", func() {
+			err := motor.Home(123)
+			So(err, ShouldBeError, M_ERR_DISABLED)
+		})
+
+		Convey("GetState returns appropriate error", func() {
+			_, err := motor.GetState()
+			So(err, ShouldBeError, M_ERR_DISABLED)
+		})
+	})
 }
 
 func TestDynastat(t *testing.T) {
 	motor := new(MockMotor)
+	motor.enabled = true // need to manually enable this
 	sb := &SensorBoard{
 		&MockI2CSensorBoard{
 			data: make([]byte, sb_ROWS*sb_COLS*2),
@@ -482,6 +507,13 @@ func TestDynastat(t *testing.T) {
 			state, _ := dynastat.GetState()
 			So(state.Motors, ShouldContainKey, "TestMotor")
 			So(state.Sensors, ShouldContainKey, "TestSensor")
+		})
+
+		Convey("a disabled motor errors gracefully", func() {
+			// should return an empty motor state
+			motor.enabled = false
+			state, _ := dynastat.GetState()
+			So(state.Motors, ShouldNotContainKey, "TestMotor")
 		})
 	})
 }

@@ -48,6 +48,10 @@ const (
 	m_REG_RELATIVE  = 8
 )
 
+var (
+	M_ERR_DISABLED = errors.New("motor is disabled")
+)
+
 type UARTMCU struct {
 	devices []int
 	port    io.ReadWriteCloser
@@ -106,6 +110,7 @@ type RMCS220xMotor struct {
 	rawLow   int
 	rawHigh  int
 	target   int
+	enabled  bool
 }
 
 type MotorState struct {
@@ -551,12 +556,19 @@ func (m *RMCS220xMotor) readPosition() (val int32, err error) {
 
 // SetTarget updates the Current Target in software and issues the write to the motor with the scaled value.
 func (m *RMCS220xMotor) SetTarget(target int) {
+	if !m.enabled {
+		// TODO: add better error handling here, but as this is almost private now it matters less
+		return
+	}
 	m.target = target
 	m.writePosition(int32(m.scalePos(target, true)))
 }
 
 // GetPosition reads the position from motor and scales it to application range.
 func (m *RMCS220xMotor) GetPosition() (val int, err error) {
+	if !m.enabled {
+		return 0, M_ERR_DISABLED
+	}
 	raw, err := m.readPosition()
 	if err != nil {
 		return
@@ -568,6 +580,10 @@ func (m *RMCS220xMotor) GetPosition() (val int, err error) {
 // To avoid crashes being potentially destructive to hardware, this in done in small increments so the motor will not
 // continue unless the software deems it safe and reissues the move command.
 func (m *RMCS220xMotor) Home(cal int) (err error) {
+	if !m.enabled {
+		return M_ERR_DISABLED
+	}
+
 	err = m.findHome(cal < 0)
 	if err != nil {
 		return err
@@ -585,6 +601,10 @@ func (m *RMCS220xMotor) Home(cal int) (err error) {
 // GetState provides information on the desired and Current position of the motor.
 // This can be used to determine if the motor is currently at its Target or is in transit
 func (m *RMCS220xMotor) GetState() (state MotorState, err error) {
+	if !m.enabled {
+		return state, M_ERR_DISABLED
+	}
+
 	state.Target = m.target
 	state.Current, err = m.GetPosition()
 	return
@@ -633,6 +653,8 @@ func NewRMCS220xMotor(bus UARTMCUInterface, switches *SwitchMCU, control uint16,
 	motor.address = address
 	motor.rawLow = rawLow
 	motor.rawHigh = rawHigh
+
+	motor.enabled = motor.bus.connected(address)
 
 	// calculate target and set to a raw value of zero
 	motor.target = motor.scalePos(0, false)
@@ -880,7 +902,16 @@ func (d *Dynastat) readMotors() (result map[string]MotorState, err error) {
 	for name, motor := range d.Motors {
 		state, err := motor.GetState()
 		if err != nil {
-			return nil, err
+			// time to check what the error is
+			switch err {
+			case M_ERR_DISABLED:
+				// this is a expected error, continue
+				continue
+
+			default:
+				// if we don't know what the error is, then we have a problem
+				return nil, err
+			}
 		}
 		result[name] = state
 	}
