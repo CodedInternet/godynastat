@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/CodedInternet/godynastat/onboard"
 	"github.com/gorilla/websocket"
 	"github.com/keroserene/go-webrtc"
 	"io"
 	"time"
-	"github.com/CodedInternet/godynastat/onboard"
 )
 
 type WebRTCClient struct {
@@ -48,6 +48,7 @@ func NewWebRTCClient(
 		webrtc.OptionIceServer("stun:stun3.l.google.com:19302"),
 		webrtc.OptionIceServer("stun:stun4.l.google.com:19302"),
 	)
+	config.IceServers = append(config.IceServers)
 	client.pc, err = webrtc.NewPeerConnection(config)
 	if err != nil {
 		return
