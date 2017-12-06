@@ -74,7 +74,6 @@ func (tc *TwilioClient) IceServers() (iceServers []webrtc.IceServer, err error) 
 	}
 
 	for _, ices := range tokens.IceServers {
-		fmt.Printf("adding server %v\n", ices)
 		var server webrtc.IceServer
 		server.Urls = append(server.Urls, ices.Url)
 		server.Username = ices.Username

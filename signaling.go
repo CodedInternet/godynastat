@@ -89,7 +89,12 @@ func WebRTCSignalHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if _, ok := parsed["type"]; ok {
-			client, err = ENV.Conductor.ReceiveOffer(msg, msgs)
+			iceServers, err := ENV.TwilioClient.IceServers()
+			if err != nil {
+				log.Printf("unable to get twilio servers: %v", err)
+			}
+
+			client, err = ENV.Conductor.ReceiveOffer(msg, iceServers, msgs)
 			if err != nil {
 				fmt.Errorf("%s\n", err)
 				return
