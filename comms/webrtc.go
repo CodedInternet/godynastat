@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/CodedInternet/godynastat/onboard"
 	"github.com/gorilla/websocket"
 	"github.com/keroserene/go-webrtc"
 	"io"
+	"strings"
 	"time"
-	"github.com/CodedInternet/godynastat/onboard"
 )
 
 type WebRTCClient struct {
@@ -36,6 +37,7 @@ type ConductorInterface interface {
 func NewWebRTCClient(
 	sdp *webrtc.SessionDescription,
 	conductor ConductorInterface,
+	iceServers []webrtc.IceServer,
 	signals chan<- string) (client *WebRTCClient, err error) {
 
 	client = new(WebRTCClient)
@@ -48,6 +50,9 @@ func NewWebRTCClient(
 		webrtc.OptionIceServer("stun:stun3.l.google.com:19302"),
 		webrtc.OptionIceServer("stun:stun4.l.google.com:19302"),
 	)
+	for _, server := range iceServers {
+		config.AddIceServer(strings.Join(server.Urls, ","), server.Username, server.Credential)
+	}
 	client.pc, err = webrtc.NewPeerConnection(config)
 	if err != nil {
 		return
@@ -179,12 +184,12 @@ func (c *Conductor) UpdateClients() {
 	}
 }
 
-func (c *Conductor) ReceiveOffer(msg string, signals chan<- string) (client *WebRTCClient, err error) {
+func (c *Conductor) ReceiveOffer(msg string, iceServers []webrtc.IceServer, signals chan<- string) (client *WebRTCClient, err error) {
 	sdp := webrtc.DeserializeSessionDescription(msg)
 	if sdp != nil {
 		switch sdp.Type {
 		case "offer":
-			client, err = NewWebRTCClient(sdp, ConductorInterface(c), signals)
+			client, err = NewWebRTCClient(sdp, ConductorInterface(c), iceServers, signals)
 			if err != nil {
 				return nil, err
 			}

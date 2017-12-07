@@ -3,17 +3,30 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/CodedInternet/godynastat/comms"
+	"github.com/go-chi/render"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"time"
-	"github.com/CodedInternet/godynastat/comms"
 )
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin:     func(r *http.Request) bool { return true },
+}
+
+func IceServers(w http.ResponseWriter, r *http.Request) {
+	serverList, err := ENV.TwilioClient.IceServers()
+	if err != nil {
+		log.Println(err.Error())
+		ErrRender(err)
+	}
+
+	fmt.Printf("%v", serverList)
+	render.JSON(w, r, serverList)
+	return
 }
 
 func EchoHandler(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +89,12 @@ func WebRTCSignalHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if _, ok := parsed["type"]; ok {
-			client, err = ENV.Conductor.ReceiveOffer(msg, msgs)
+			iceServers, err := ENV.TwilioClient.IceServers()
+			if err != nil {
+				log.Printf("unable to get twilio servers: %v", err)
+			}
+
+			client, err = ENV.Conductor.ReceiveOffer(msg, iceServers, msgs)
 			if err != nil {
 				fmt.Errorf("%s\n", err)
 				return

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	. "github.com/CodedInternet/godynastat/onboard"
 	"github.com/CodedInternet/godynastat/comms"
+	. "github.com/CodedInternet/godynastat/onboard"
 	"github.com/abiosoft/ishell"
 	"github.com/asdine/storm"
 	"github.com/caarlos0/env"
@@ -23,14 +23,15 @@ import (
 )
 
 type EnvConfig struct {
-	JWT_ISSUER string `env:"RESIN_DEVICE_UUID" envDefault:"DEV"`
-	RESIN      bool   `env:"RESIN" envDefault:"0"`
-	DEBUG      bool   `env:"DEBUG" envDefault:"0"`
-	SRCDIR     string `env:"SRCDIR" envDefault:"."`
-	HTMLDIR    string `env:"HTMLDIR" envDefault:"./frontend/dist/"`
-	DB         *storm.DB
-	Conductor  *comms.Conductor
-	Simulated  bool
+	JWT_ISSUER   string `env:"RESIN_DEVICE_UUID" envDefault:"DEV"`
+	RESIN        bool   `env:"RESIN" envDefault:"0"`
+	DEBUG        bool   `env:"DEBUG" envDefault:"0"`
+	SRCDIR       string `env:"SRCDIR" envDefault:"."`
+	HTMLDIR      string `env:"HTMLDIR" envDefault:"./frontend/dist/"`
+	DB           *storm.DB
+	Conductor    *comms.Conductor
+	Simulated    bool
+	TwilioClient *comms.TwilioClient
 }
 
 var (
@@ -114,6 +115,12 @@ func main() {
 		panic(fmt.Sprintf("Unable to unmarshal yaml: %v", err))
 	}
 
+	ENV.TwilioClient, err = comms.NewTwilioClient()
+	if err != nil {
+		panic(fmt.Sprintf("unable to create twilio client: %v", err))
+	}
+
+	// create an appropriate Twilio client
 	var dynastat *Dynastat
 
 	ENV.Simulated = *simulated
@@ -339,13 +346,15 @@ func main() {
 
 		r.Route("/", func(r chi.Router) {
 			// Seek, verify and validate JWT tokens
-			r.Use(ValidateJWT)
-
-			r.Get("/foo", func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte("Success"))
-			})
+			if ENV.RESIN && !ENV.DEBUG {
+				// Enable JWT validation in production
+				r.Use(ValidateJWT)
+			} else {
+				fmt.Println("Running in debug mode. API authentication disabled.")
+			}
 
 			r.Get("/refresh_token", JWTRefresh)
+			r.Get("/ice_servers", IceServers)
 		})
 
 	})
@@ -356,7 +365,7 @@ func main() {
 			// Enable JWT validation in production
 			r.Use(ValidateJWT)
 		} else {
-			fmt.Println("Running in debug mode. Authentication disabled.")
+			fmt.Println("Running in debug mode. WS authentication disabled.")
 		}
 
 		r.Get("/echo", EchoHandler)
