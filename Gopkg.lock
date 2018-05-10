@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/Masterminds/semver"
+  packages = ["."]
+  revision = "c7af12943936e8c39859482e61f0574c2fd7fc75"
+  version = "v1.4.2"
+
+[[projects]]
   branch = "v2"
   name = "github.com/abiosoft/ishell"
   packages = ["."]
@@ -9,7 +15,14 @@
 
 [[projects]]
   name = "github.com/asdine/storm"
-  packages = [".","codec","codec/json","index","internal","q"]
+  packages = [
+    ".",
+    "codec",
+    "codec/json",
+    "index",
+    "internal",
+    "q"
+  ]
   revision = "84522964db3b14b386db48c7ae91c549b33a4171"
   version = "v1.0.0"
 
@@ -39,7 +52,10 @@
 
 [[projects]]
   name = "github.com/go-chi/chi"
-  packages = [".","middleware"]
+  packages = [
+    ".",
+    "middleware"
+  ]
   revision = "08660a0ad10a8fa7beab3ad43afe66373d49d06a"
   version = "v3.1.0"
 
@@ -81,20 +97,31 @@
 
 [[projects]]
   name = "github.com/smartystreets/assertions"
-  packages = [".","internal/go-render/render","internal/oglematchers"]
+  packages = [
+    ".",
+    "internal/go-render/render",
+    "internal/oglematchers"
+  ]
   revision = "ff1918e1e5a13a74014644ae7c1e0ba2f791364d"
   version = "1.8.0"
 
 [[projects]]
   name = "github.com/smartystreets/goconvey"
-  packages = ["convey","convey/gotest","convey/reporting"]
+  packages = [
+    "convey",
+    "convey/gotest",
+    "convey/reporting"
+  ]
   revision = "9e8dc3f972df6c8fcc0375ef492c24d0bb204857"
   version = "1.6.3"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["bcrypt","blowfish"]
+  packages = [
+    "bcrypt",
+    "blowfish"
+  ]
   revision = "4bc1c249b153ce1da9f55437759cec51fe6acabb"
 
 [[projects]]
@@ -118,6 +145,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2425bd5cb373d15bb5fdbfda4954006304ca2b6e8d1ac1d27adbe050e3e958d3"
+  inputs-digest = "a34c3e30948aadc496636af11d43bdac6e09536a36883d8e0cb6d09f9e691253"
   solver-name = "gps-cdcl"
   solver-version = 1
