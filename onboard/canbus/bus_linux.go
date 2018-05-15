@@ -6,7 +6,6 @@ package canbus
 import "C"
 
 import (
-	"fmt"
 	"golang.org/x/sys/unix"
 	"net"
 )
@@ -49,7 +48,6 @@ func (c *CANBus) AddListener(nodeId uint32, rxchan chan CANMsg) {
 }
 
 func (c *CANBus) SendMsg(msg CANMsg) error {
-	msg.ID &= CANHostFlag
 	raw, err := msg.toByteArray()
 	if err != nil {
 		return err
@@ -61,7 +59,6 @@ func (c *CANBus) SendMsg(msg CANMsg) error {
 func (c *CANBus) writer() {
 	for c.open {
 		msg := <-c.tx
-		fmt.Printf("sending %v", msg)
 		unix.Write(c.fd, msg)
 	}
 }
@@ -70,8 +67,10 @@ func (c *CANBus) reader() {
 	for c.open {
 		raw := make([]byte, 16)
 		unix.Read(c.fd, raw)
-		msg := msgFromByteArray(raw)
+		msg := nodeMsgFromByteArray(raw)
 
-		c.Rx[msg.ID] <- msg
+		if msg != nil {
+			c.Rx[msg.ID] <- *msg
+		}
 	}
 }

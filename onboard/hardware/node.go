@@ -11,7 +11,12 @@ import (
 )
 
 const (
-	NODE_VERSION = "~0.1.0"
+	nodeCmdMaxRetries = 5
+	nodeCmdTimeout    = 50 * time.Millisecond
+)
+
+var (
+	NodeVersion = "~0.1.0"
 )
 
 type ControlNode struct {
@@ -20,8 +25,20 @@ type ControlNode struct {
 	bus        canbus.CANBusInterface
 	lock       *sync.Mutex
 	pending    sync.WaitGroup
-	pendingCmd map[uint16]*BaseCommand
+	pendingCmd map[uint16]*cmdStatus
 	rx         chan canbus.CANMsg
+}
+
+type cmdStatus struct {
+	resp chan NodeCommand
+	err  chan error
+}
+
+func newStatus() *cmdStatus {
+	return &cmdStatus{
+		make(chan NodeCommand),
+		make(chan error),
+	}
 }
 
 func NewControlNode(bus canbus.CANBusInterface, id uint32) (n *ControlNode, err error) {
@@ -31,72 +48,107 @@ func NewControlNode(bus canbus.CANBusInterface, id uint32) (n *ControlNode, err 
 		bus:        bus,
 		lock:       new(sync.Mutex),
 		pending:    sync.WaitGroup{},
-		pendingCmd: make(map[uint16]*BaseCommand),
+		pendingCmd: make(map[uint16]*cmdStatus),
 		rx:         make(chan canbus.CANMsg), // override to be a buffered channel
 	}
 
-	go n.listen()
+	ready := make(chan struct{})
+	go n.listen(ready)
+
+	<-ready
 
 	// check version is acceptable
-	vc := &CMDVersion{
-		&BaseCommand{
-			node: n,
-		},
-	}
+	vc := &CMDVersion{}
 
-	resp, err := vc.Process()
+	resp, err := n.Send(vc)
+
 	if err != nil {
+		err = fmt.Errorf("unable to determine version: %s", err)
 		return
 	}
 
-	versionString := string(resp.Data)
-	semVer, err := semver.NewVersion(versionString)
-	if err != nil {
-		// not a semver, but we might be able to recover
-
-		if versionString == "DEV" {
-			// running a direct dev version, consider it safe for now but require a flag in the future
-			// todo: add support for running a dev version via config/env/cli flag
-			err = nil
-		} else if len(versionString) == 7 {
-			// running a direct commit build, assume it is unsafe as this shouldn't happen
-			// todo: add support for running a specific commit via config/env/cli flag
-			return
+	version := resp.(*CMDVersion)
+	if version.version != nil {
+		// check semver
+		semVerConstraint, err := semver.NewConstraint(NodeVersion)
+		if err != nil {
+			return n, err
 		}
-	}
 
-	// check semver
-	semVerConstraint, err := semver.NewConstraint(NODE_VERSION)
-	if err != nil {
-		return
-	}
-
-	if !semVerConstraint.Check(semVer) {
-		err = fmt.Errorf("unable to use node %d: recieved version %s - require %s", id, versionString, NODE_VERSION)
+		if !semVerConstraint.Check(version.version) {
+			err = fmt.Errorf("unable to use node %d: recieved version %s - require %s", id, version.version, NodeVersion)
+			return n, err
+		}
+	} else if version.dev == true {
+		// todo: Check if we are in dev mode rather than just accepting it
+	} else if version.sha != "" {
+		// todo: Check the commit hash against a list of acceptable commits. Perhaps this could be expanded to examine the git history?
+	} else {
+		// unable to process version number
+		err = fmt.Errorf("unable to use node %d: unkown version", id)
 	}
 
 	return
 }
 
-func (n *ControlNode) SendMsg(msg canbus.CANMsg) error {
-	n.lock.Lock()
-	defer n.lock.Unlock()
+func (n *ControlNode) Send(cmd NodeCommand) (NodeCommand, error) {
+	var (
+		msg = canbus.CANMsg{
+			ID:   n.id,
+			Cmd:  cmd.CMD(),
+			Data: cmd.TXData(),
+		}
+		status   = newStatus()
+		complete = newStatus()
+	)
+	n.pending.Add(1)
+	n.pendingCmd[cmd.CID()] = status
+	defer n.pending.Done()
+	defer delete(n.pendingCmd, cmd.CID())
 
-	return n.bus.SendMsg(msg)
+	go func() {
+		err := n.transmit(msg)
+		if err != nil {
+			complete.err <- err
+			return
+		}
+
+		for i := 1; i < nodeCmdMaxRetries; i++ {
+			select {
+			case resp := <-status.resp:
+				complete.resp <- resp
+				return
+
+			case <-status.err:
+				complete.err <- ErrSendAbort
+				return
+
+			case <-time.After(nodeCmdTimeout):
+				err := n.transmit(msg)
+				if err != nil {
+					complete.err <- err
+					return
+				}
+			}
+		}
+
+		complete.err <- ErrMaxRetries
+		return
+	}()
+
+	select {
+	case resp := <-complete.resp:
+		return resp, nil
+
+	case err := <-complete.err:
+		return nil, err
+	}
 }
 
 func (n *ControlNode) StageReset() (err error) {
 	n.abortPending()
 
-	resetCmd := &BaseCommand{
-		node: n,
-		msg: canbus.CANMsg{
-			ID:  n.id,
-			Cmd: CMD_STAGE_RESET,
-		},
-	}
-
-	_, err = resetCmd.Process()
+	n.Send(&EmptyCommand{cmdStageReset})
 	return
 }
 
@@ -110,15 +162,7 @@ func (n *ControlNode) StageCommit() (err error) {
 
 	select {
 	case <-ready:
-		commitCmd := &BaseCommand{
-			node: n,
-			msg: canbus.CANMsg{
-				ID:  n.id,
-				Cmd: CMD_STAGE_COMMIT,
-			},
-		}
-
-		_, err = commitCmd.Process()
+		n.Send(&EmptyCommand{cmdStageReset})
 		return
 
 	case <-time.After(time.Second):
@@ -126,41 +170,46 @@ func (n *ControlNode) StageCommit() (err error) {
 	}
 }
 
-func (n *ControlNode) listen() {
+func (n *ControlNode) transmit(msg canbus.CANMsg) error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	return n.bus.SendMsg(msg)
+}
+
+func (n *ControlNode) listen(ready chan<- struct{}) {
 	if n.rx == nil {
 		n.rx = make(chan canbus.CANMsg)
 	}
 	n.bus.AddListener(n.id, n.rx)
+	close(ready)
 
 	for {
 		msg := <-n.rx
 
-		switch msg.Cmd {
-		case CMD_STAGE_POS:
-			resp := &CMDSetPos{
-				BaseCommand: &BaseCommand{
-					msg: msg,
-				},
-				cmd: msg.Cmd,
-			}
+		var resp NodeCommand
 
-			n.routeACK(resp)
-
-		default:
-			n.routeACK(&BaseCommand{
-				msg: msg,
-			})
-
+		if cmdType, ok := CMDMap[msg.Cmd]; ok {
+			resp = cmdReflect(cmdType)
+		} else {
+			resp = &EmptyCommand{msg.Cmd}
 		}
+
+		resp.RXData(msg.Data)
+
+		n.routeResp(resp)
 	}
 }
 
 func (n *ControlNode) abortPending() {
-	for _, cmd := range n.pendingCmd {
-		cmd.Abort()
+	for _, status := range n.pendingCmd {
+		close(status.err)
 	}
 }
 
-func (n *ControlNode) routeACK(resp NodeCommand) {
-	n.pendingCmd[resp.ID()].Ack(resp.Msg())
+func (n *ControlNode) routeResp(resp NodeCommand) {
+	c, ok := n.pendingCmd[resp.CID()]
+	if ok {
+		c.resp <- resp
+	}
 }

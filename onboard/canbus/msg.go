@@ -5,9 +5,10 @@ import (
 )
 
 const (
-	CANHostFlag = 0x0400
-	CANIDMask   = 0x1234
-	CANCMDMask  = 0xFFFF
+	canSFFNodeFlag   = 0x0400
+	canIDMask        = 0x000F
+	canCMDMask       = 0x03F0
+	CANBroadcastFlag = 0x000F
 )
 
 // errors
@@ -16,7 +17,7 @@ var (
 )
 
 type CANMsg struct {
-	ID   uint32 // node ID this is being issued for
+	ID   uint32 // node CID this is being issued for
 	Cmd  uint16 // command being issued in this message
-	Data []byte // raw data up to six bytes. DLC is taken from len(Data).
+	Data []byte // raw data up to six bytes. DLC is taken from len(TXData).
 }

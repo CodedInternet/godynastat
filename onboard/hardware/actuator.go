@@ -8,18 +8,19 @@ type Actuator struct {
 }
 
 func (m *Actuator) SetTarget(target uint8) {
-	cmd := &CMDSetPos{
-		cmd:      CMD_STAGE_POS,
-		actuator: m,
-	}
-
 	m.Ready = false
 	m.State.Target = target
 
 	// blocks until success or err
-	_, err := cmd.Process()
+	_, err := m.Node.Send(&CMDStagePos{
+		m.Index,
+		m.State.Target,
+		255, // todo: make speed dynamically controllable
+	})
+
 	if err != nil {
 		// TODO: handle error
+		panic(err)
 	}
 
 	m.Ready = true

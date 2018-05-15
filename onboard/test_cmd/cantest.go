@@ -19,13 +19,12 @@ func main() {
 		panic(err)
 	}
 
-	var versionCmd hardware.CMDVersion
-	versionCmd.SetNode(node)
-
-	resp, err := versionCmd.Process()
+	cmd, err := node.Send(&hardware.CMDVersion{})
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("Success! Working with node version %s", resp.Data)
+	version := cmd.(*hardware.CMDVersion)
+
+	fmt.Printf("Success! Working with node version %#v\n", version)
 }

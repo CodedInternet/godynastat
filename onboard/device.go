@@ -509,12 +509,12 @@ func NewSwitchMCU(bus I2CBusInterface, address int) (mcu *SwitchMCU, err error) 
 	mcu.bus = bus
 	mcu.address = address
 
-	// check ID reads correctly
+	// check CID reads correctly
 	buf := make([]byte, 2)
 	mcu.bus.Get(address, sm_REG_ID, buf)
 	val := binary.LittleEndian.Uint16(buf)
 	if val != sm_KNOWN_ID {
-		return nil, errors.New(fmt.Sprintf("Switch MCU not recognised. Expected ID %x recieved %x", sm_KNOWN_ID, val))
+		return nil, errors.New(fmt.Sprintf("Switch MCU not recognised. Expected CID %x recieved %x", sm_KNOWN_ID, val))
 	}
 
 	return
