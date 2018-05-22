@@ -67,6 +67,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/go-gl/mathgl"
+  packages = ["mgl64"]
+  revision = "5ab0e04e1f55a10f3a71b1fccc60ca2ee9a0bc02"
+
+[[projects]]
+  branch = "master"
   name = "github.com/gopherjs/gopherjs"
   packages = ["js"]
   revision = "2b1d432c8a82c9bff0b0baffaeb3ec6e92974112"
@@ -126,6 +132,12 @@
 
 [[projects]]
   branch = "master"
+  name = "golang.org/x/image"
+  packages = ["math/f64"]
+  revision = "f315e440302883054d0c2bd85486878cb4f8572c"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
   revision = "7a4fde3fda8ef580a89dbae8138c26041be14299"
@@ -145,6 +157,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a34c3e30948aadc496636af11d43bdac6e09536a36883d8e0cb6d09f9e691253"
+  inputs-digest = "884f0731584e0294afe4ad5abc9037462a8413067809fd37c1a8c849dc2f1032"
   solver-name = "gps-cdcl"
   solver-version = 1
