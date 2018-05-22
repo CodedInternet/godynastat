@@ -3,7 +3,7 @@ package hardware
 type Actuator struct {
 	State MotorState
 	Node  ControlNode // the parent node that controls this actuator
-	Index uint8       // the index of the motor in the node. Range: 1-4
+	Index uint8       // the Index of the motor in the node. Range: 1-4
 	Ready bool        // sets to true when the node acknowledges the movement is staged.
 }
 
@@ -15,7 +15,7 @@ func (m *Actuator) SetTarget(target uint8) {
 	_, err := m.Node.Send(&CMDStagePos{
 		m.Index,
 		m.State.Target,
-		255, // todo: make speed dynamically controllable
+		255, // todo: make Speed dynamically controllable
 	})
 
 	if err != nil {

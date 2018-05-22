@@ -80,7 +80,7 @@ func (c *EmptyCommand) RXData([]byte) {
 	return
 }
 
-// Command to take set an actuator to a position directly without staging the movement
+// Command to take set an actuator to a Position directly without staging the movement
 type CMDSetPos struct {
 	index    byte
 	position byte
@@ -111,31 +111,31 @@ func (c *CMDSetPos) RXData(data []byte) {
 
 // Command to stage a motor movement. Does not perform any action until a cmdStageCommit is received
 type CMDStagePos struct {
-	index    byte
-	position byte
-	speed    byte
+	Index    byte
+	Position byte
+	Speed    byte
 }
 
 func (c *CMDStagePos) CID() uint16 {
-	return c.CMD() & uint16(c.index)
+	return c.CMD() & uint16(c.Index)
 }
 
 func (*CMDStagePos) CMD() uint16 {
-	return cmdSetPos
+	return cmdStagePos
 }
 
 func (c *CMDStagePos) TXData() []byte {
 	return []byte{
-		c.index,
-		c.position,
-		c.speed,
+		c.Index,
+		c.Position,
+		c.Speed,
 	}
 }
 
 func (c *CMDStagePos) RXData(data []byte) {
-	c.index = data[0]
-	c.position = data[1]
-	c.speed = data[2]
+	c.Index = data[0]
+	c.Position = data[1]
+	c.Speed = data[2]
 }
 
 type CMDVersion struct {

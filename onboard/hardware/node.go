@@ -162,7 +162,7 @@ func (n *ControlNode) StageCommit() (err error) {
 
 	select {
 	case <-ready:
-		n.Send(&EmptyCommand{cmdStageReset})
+		n.Send(&EmptyCommand{cmdStageCommit})
 		return
 
 	case <-time.After(time.Second):
