@@ -1,4 +1,4 @@
-FROM resin/beaglebone-black-node:6 as frontend
+FROM balenalib/beaglebone-black-node:6 as frontend
 
 RUN apt update && apt install -y jq
 RUN npm install --global yarn ember-cli
@@ -13,7 +13,7 @@ RUN yarn
 RUN ember build
 
 # build main runtime image
-FROM resin/beaglebone-black-golang:1.8
+FROM balenalib/beaglebone-black-golang:1.11
 
 # Enable systemd
 ENV INITSYSTEM on
