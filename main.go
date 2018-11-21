@@ -1,12 +1,10 @@
 package main
 
 import (
-	"encoding/binary"
-	"errors"
 	"flag"
 	"fmt"
-	. "github.com/CodedInternet/godynastat/onboard"
 	"github.com/CodedInternet/godynastat/comms"
+	. "github.com/CodedInternet/godynastat/onboard"
 	"github.com/abiosoft/ishell"
 	"github.com/asdine/storm"
 	"github.com/caarlos0/env"
@@ -114,18 +112,19 @@ func main() {
 		panic(fmt.Sprintf("Unable to unmarshal yaml: %v", err))
 	}
 
-	var dynastat *Dynastat
+	var dynastat *ActuatorDynastat
 
 	ENV.Simulated = *simulated
-	if ENV.Simulated {
-		println("Creating simulator")
-		dynastat = NewDynastatSimulator(&config)
-	} else {
-		dynastat, err = NewDynastat(&config)
-		if err != nil {
-			panic(fmt.Sprintf("Unable to initialize dynastat: %v", err))
-		}
-	}
+	//if ENV.Simulated {
+	//	println("Creating simulator")
+	//	dynastat = NewDynastatSimulator(&config)
+	//} else {
+	//	dynastat, err = NewDynastat(&config)
+	//	if err != nil {
+	//		panic(fmt.Sprintf("Unable to initialize dynastat: %v", err))
+	//	}
+	//}
+	dynastat, err = NewActuatorDynastat(config)
 
 	ENV.Conductor = new(comms.Conductor)
 	ENV.Conductor.Device = dynastat
@@ -136,9 +135,9 @@ func main() {
 	// Create a local shell
 	//---
 	{
-		motorNames := func([]string) []string {
-			keys := make([]string, len(dynastat.Motors))
-			for k := range dynastat.Motors {
+		platformNames := func([]string) []string {
+			keys := make([]string, len(dynastat.Platforms))
+			for k := range dynastat.Platforms {
 				keys = append(keys, k)
 			}
 			return keys
@@ -192,139 +191,162 @@ func main() {
 		// Add device specific commands
 		shell.AddCmd(&ishell.Cmd{
 			Name:      "move",
-			Completer: motorNames,
-			Help:      "move <Motor> <position (0-255)>",
+			Completer: platformNames,
+			Help:      "move <name> <height> <tilt> <roll>",
 			Func: func(c *ishell.Context) {
 				name := c.Args[0]
-				position, _ := strconv.Atoi(c.Args[1])
-				c.Printf("Moving Motor %s to %d\n", name, position)
-				dynastat.SetMotor(name, position)
+				height, _ := strconv.Atoi(c.Args[1])
+				tilt, _ := strconv.Atoi(c.Args[2])
+				roll, _ := strconv.Atoi(c.Args[3])
+				c.Printf("Moving platform %s to H:%d T:%d R:%d\n", name, height, tilt, roll)
+				err = dynastat.SetHeight(name, float64(height))
+				if err != nil {
+					c.Err(err)
+				}
+				err = dynastat.SetRotation(name, float64(roll), float64(tilt))
+				if err != nil {
+					c.Err(err)
+				}
 			},
 		})
+
+		shell.AddCmd(&ishell.Cmd{
+			Name:      "height",
+			Completer: platformNames,
+			Help:      "height <name> <height> <tilt> <roll>",
+			Func: func(c *ishell.Context) {
+				name := c.Args[0]
+				height, _ := strconv.Atoi(c.Args[1])
+				c.Printf("Moving platform %s to H:%d\n", name, height)
+				err = dynastat.SetHeight(name, float64(height))
+				if err != nil {
+					c.Err(err)
+					println(err)
+				}
+			},
+		})
+
 		shell.AddCmd(&ishell.Cmd{
 			Name:      "home",
-			Completer: motorNames,
+			Completer: platformNames,
 			Help:      "home <Motor>",
 			Func: func(c *ishell.Context) {
 				name := string(c.Args[0])
 				c.Printf("Homing Motor %s\n", name)
-				err := dynastat.HomeMotor(name)
-				if err != nil {
-					log.Fatal(err)
-					return
-				}
+				dynastat.SetHeight(name, 0)
+				dynastat.SetRotation(name, 0, 0)
 			},
 		})
-		shell.AddCmd(&ishell.Cmd{
-			Name: "state",
-			Help: "Reads the current state of the device",
-			Func: func(c *ishell.Context) {
-				c.Println("Getting state")
-				state, err := dynastat.GetState()
-				c.Printf("#v #v", state, err)
-			},
-		})
+		//shell.AddCmd(&ishell.Cmd{
+		//	Name: "state",
+		//	Help: "Reads the current state of the device",
+		//	Func: func(c *ishell.Context) {
+		//		c.Println("Getting state")
+		//		state, err := dynastat.GetState()
+		//		c.Printf("#v #v", state, err)
+		//	},
+		//})
 
-		shell.AddCmd(&ishell.Cmd{
-			Name: "control",
-			Func: func(c *ishell.Context) {
-				buf := make([]byte, 2)
-				dynastat.SensorBus.Get(0x20, 3, buf)
-				val := binary.LittleEndian.Uint16(buf)
-				c.Printf("0x%X\n", val)
+		//shell.AddCmd(&ishell.Cmd{
+		//	Name: "control",
+		//	Func: func(c *ishell.Context) {
+		//		buf := make([]byte, 2)
+		//		dynastat.SensorBus.Get(0x20, 3, buf)
+		//		val := binary.LittleEndian.Uint16(buf)
+		//		c.Printf("0x%X\n", val)
+		//
+		//		for i := 0; i <= 10; i++ {
+		//			c.Printf("Match: %d & %d = %v\n", val, i, val&(1<<uint16(i)) == 0)
+		//		}
+		//	},
+		//})
 
-				for i := 0; i <= 10; i++ {
-					c.Printf("Match: %d & %d = %v\n", val, i, val&(1<<uint16(i)) == 0)
-				}
-			},
-		})
-
-		{
-			// Calibration specific commands
-			calCmd := &ishell.Cmd{
-				Name: "cal",
-				Help: "calibrate a motor",
-			}
-
-			calCmd.AddCmd(&ishell.Cmd{
-				Name:      "move",
-				Help:      "Move a motor to a specified absolute value",
-				Completer: motorNames,
-				Func: func(c *ishell.Context) {
-					name := c.Args[0]
-					position, _ := strconv.Atoi(c.Args[1])
-
-					dynastat.GotoMotorRaw(name, position)
-				},
-			})
-
-			calCmd.AddCmd(&ishell.Cmd{
-				Name:      "write",
-				Help:      "Write the current absolute value for a motor",
-				Completer: motorNames,
-				Func: func(c *ishell.Context) {
-					name := c.Args[0]
-					position, _ := strconv.Atoi(c.Args[1])
-
-					dynastat.WriteMotorRaw(name, position)
-				},
-			})
-
-			calCmd.AddCmd(&ishell.Cmd{
-				Name:      "low",
-				Help:      "Set the current position as the low value for a motor",
-				Completer: motorNames,
-				Func: func(c *ishell.Context) {
-					name := c.Args[0]
-					dynastat.RecordMotorLow(name)
-				},
-			})
-			calCmd.AddCmd(&ishell.Cmd{
-				Name:      "high",
-				Help:      "Set the current position as the high value for a motor",
-				Completer: motorNames,
-				Func: func(c *ishell.Context) {
-					name := c.Args[0]
-					dynastat.RecordMotorHigh(name)
-				},
-			})
-
-			calCmd.AddCmd(&ishell.Cmd{
-				Name:      "home",
-				Help:      "Locate the home position and record the value in the config",
-				Completer: motorNames,
-				Func: func(c *ishell.Context) {
-					if len(c.Args) != 2 {
-						c.Err(errors.New("Incorrect number of arguments. Usage: cal home <motor_name> <reverse>"))
-						return
-					}
-					name := c.Args[0]
-					reverse, _ := strconv.ParseBool(c.Args[1])
-
-					c.ProgressBar().Indeterminate(true)
-					c.ProgressBar().Start()
-					pos, err := dynastat.RecordMotorHome(name, reverse)
-					c.ProgressBar().Stop()
-
-					if err != nil {
-						c.Err(err)
-					}
-
-					c.Printf("Motor %s home located at %d\n", name, pos)
-				},
-			})
-
-			calCmd.AddCmd(&ishell.Cmd{
-				Name: "commit",
-				Help: "Commit the current config to disk",
-				Func: func(c *ishell.Context) {
-					yml, _ := yaml.Marshal(dynastat.GetConfig())
-					ioutil.WriteFile(filename, yml, 0744)
-				},
-			})
-
-			shell.AddCmd(calCmd)
-		}
+		//{
+		//	// Calibration specific commands
+		//	calCmd := &ishell.Cmd{
+		//		Name: "cal",
+		//		Help: "calibrate a motor",
+		//	}
+		//
+		//	calCmd.AddCmd(&ishell.Cmd{
+		//		Name:      "move",
+		//		Help:      "Move a motor to a specified absolute value",
+		//		Completer: platformNames,
+		//		Func: func(c *ishell.Context) {
+		//			name := c.Args[0]
+		//			position, _ := strconv.Atoi(c.Args[1])
+		//
+		//			dynastat.GotoMotorRaw(name, position)
+		//		},
+		//	})
+		//
+		//	calCmd.AddCmd(&ishell.Cmd{
+		//		Name:      "write",
+		//		Help:      "Write the current absolute value for a motor",
+		//		Completer: platformNames,
+		//		Func: func(c *ishell.Context) {
+		//			name := c.Args[0]
+		//			position, _ := strconv.Atoi(c.Args[1])
+		//
+		//			dynastat.WriteMotorRaw(name, position)
+		//		},
+		//	})
+		//
+		//	calCmd.AddCmd(&ishell.Cmd{
+		//		Name:      "low",
+		//		Help:      "Set the current position as the low value for a motor",
+		//		Completer: platformNames,
+		//		Func: func(c *ishell.Context) {
+		//			name := c.Args[0]
+		//			dynastat.RecordMotorLow(name)
+		//		},
+		//	})
+		//	calCmd.AddCmd(&ishell.Cmd{
+		//		Name:      "high",
+		//		Help:      "Set the current position as the high value for a motor",
+		//		Completer: platformNames,
+		//		Func: func(c *ishell.Context) {
+		//			name := c.Args[0]
+		//			dynastat.RecordMotorHigh(name)
+		//		},
+		//	})
+		//
+		//	calCmd.AddCmd(&ishell.Cmd{
+		//		Name:      "home",
+		//		Help:      "Locate the home position and record the value in the config",
+		//		Completer: platformNames,
+		//		Func: func(c *ishell.Context) {
+		//			if len(c.Args) != 2 {
+		//				c.Err(errors.New("Incorrect number of arguments. Usage: cal home <motor_name> <reverse>"))
+		//				return
+		//			}
+		//			name := c.Args[0]
+		//			reverse, _ := strconv.ParseBool(c.Args[1])
+		//
+		//			c.ProgressBar().Indeterminate(true)
+		//			c.ProgressBar().Start()
+		//			pos, err := dynastat.RecordMotorHome(name, reverse)
+		//			c.ProgressBar().Stop()
+		//
+		//			if err != nil {
+		//				c.Err(err)
+		//			}
+		//
+		//			c.Printf("Motor %s home located at %d\n", name, pos)
+		//		},
+		//	})
+		//
+		//	calCmd.AddCmd(&ishell.Cmd{
+		//		Name: "commit",
+		//		Help: "Commit the current config to disk",
+		//		Func: func(c *ishell.Context) {
+		//			yml, _ := yaml.Marshal(dynastat.GetConfig())
+		//			ioutil.WriteFile(filename, yml, 0744)
+		//		},
+		//	})
+		//
+		//	shell.AddCmd(calCmd)
+		//}
 
 		// Start an instance of the shell so it can be controlled from the CLI
 		go shell.Start()

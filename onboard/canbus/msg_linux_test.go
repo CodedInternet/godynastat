@@ -16,8 +16,8 @@ func TestCANMsg_toByteArray(t *testing.T) {
 		msg.Data = []byte{1, 2, 3, 4, 5}
 		raw, _ := msg.toByteArray()
 
-		So(raw[0:4], ShouldResemble, []byte{0x23, 0x01, 0, 0})
-		So(raw[5], ShouldEqual, 4)
+		So(raw[0:3], ShouldResemble, []byte{0x23, 0x01, 0})
+		So(raw[4], ShouldEqual, 5)
 		So(raw[8:13], ShouldResemble, msg.Data)
 
 		Convey("data length error is handled correctly", func() {

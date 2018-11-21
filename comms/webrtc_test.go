@@ -2,16 +2,15 @@ package comms
 
 import (
 	"encoding/json"
+	"github.com/CodedInternet/godynastat/onboard"
 	"github.com/keroserene/go-webrtc"
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 	"time"
-	"github.com/CodedInternet/godynastat/onboard"
 )
 
 type mockConductor struct {
-	tx chan (string)
-	rx chan (Cmd)
+	tx chan string
+	rx chan Cmd
 }
 
 func (c *mockConductor) ProcessCommand(cmd Cmd) {
@@ -139,7 +138,7 @@ func TestWebRTCClient(t *testing.T) {
 	// Generate a mock conductor
 	conductor := new(mockConductor)
 	conductor.tx = make(chan string, 10)
-	conductor.rx = make(chan (Cmd), 1)
+	conductor.rx = make(chan Cmd, 1)
 	go conductor.processSignals(t, remote.pc)
 
 	offer, err := remote.pc.CreateOffer()

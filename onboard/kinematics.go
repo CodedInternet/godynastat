@@ -1,6 +1,8 @@
 package onboard
 
 import (
+	"fmt"
+	"github.com/CodedInternet/godynastat/onboard/hardware"
 	"github.com/go-gl/mathgl/mgl64"
 	. "math"
 )
@@ -10,70 +12,89 @@ const (
 	mMax = 10000
 )
 
-type ActuatorConfig struct {
+type KPlatform interface {
+	SetRotation(z, y, x float64)
+	SetTranslation(x, y, z float64)
+	SetOrigin(x, y, z float64)
+	SetFRDrop(r float64)
+	Set() error
+}
+
+type PlatformActuator struct {
+	hardware.Actuator
 	LowerCoords mgl64.Vec3
-	UpperCoords mgl64.Vec3 // only X and Y, Z is calculated
+	UpperCoords mgl64.Vec3 // only X and Y, Z is calculated by minHeight()
 	MinLength   float64
+	_cMinHeight float64 // cached value for minHeight()
 }
 
 type actuatorAction struct {
-	target uint8
-	speed  uint8
+	actuator hardware.Actuator
+	target   float64
+	change   float64
 }
 
-func (c *ActuatorConfig) minHeight() float64 {
-	displacement := Sqrt(Pow(c.LowerCoords[0]-c.UpperCoords[0], 2) + Pow(c.LowerCoords[1]-c.UpperCoords[1], 2))
-
-	return Sqrt(Pow(c.MinLength, 2)-displacement) + c.LowerCoords[2]
-}
-
-type RearfootPlatform struct {
-	BasePoints     []mgl64.Vec3 // anchorage points for the actuators
-	PlatformPoints []mgl64.Vec3 // achorage points for the actuators at minimum extension
-	LE             []int        // leg extension
-	minL           []float64
-	Rotation       mgl64.Quat // current rotation matrix
-	Translation    mgl64.Mat4 // current translation matrix
-	Origin         mgl64.Mat4 // translation matrix for the rotation origin
-}
-
-func NewRearfootPlatform(config []ActuatorConfig) (rp *RearfootPlatform) {
-	rp = &RearfootPlatform{
-		BasePoints:     make([]mgl64.Vec3, len(config)),
-		PlatformPoints: make([]mgl64.Vec3, len(config)),
-		//Rotation: new(RotationMatrix),
-		//Translation: new(Coords),
-		LE:     make([]int, len(config)),
-		minL:   make([]float64, len(config)),
-		Origin: mgl64.Translate3D(0, 0, 0),
+func (pa *PlatformActuator) minHeight() float64 {
+	if pa._cMinHeight == 0 {
+		displacement := Sqrt(Pow(pa.LowerCoords[0]-pa.UpperCoords[0], 2) + Pow(pa.LowerCoords[1]-pa.UpperCoords[1], 2))
+		pa._cMinHeight = Sqrt(Pow(pa.MinLength, 2)-displacement) + pa.LowerCoords[2]
 	}
 
-	for i, c := range config {
-		rp.BasePoints[i] = c.LowerCoords
-		rp.PlatformPoints[i] = c.UpperCoords
-		rp.minL[i] = c.minHeight()
+	return pa._cMinHeight
+}
+
+type KinematicPlatform struct {
+	Actuators   []PlatformActuator
+	Node        hardware.ControlNode
+	Rotation    mgl64.Quat // current rotation matrix
+	Translation mgl64.Mat4 // current translation matrix
+	Origin      mgl64.Mat4 // translation matrix for the rotation origin
+
+	// first ray options for if len(actuators) == 4
+	FROrigin   mgl64.Mat4
+	FRRotation mgl64.Quat
+}
+
+func NewRearfootPlatform(actuators []PlatformActuator) (rp *KinematicPlatform) {
+	rp = &KinematicPlatform{
+		Actuators:   actuators,
+		Rotation:    mgl64.QuatIdent(),
+		Translation: mgl64.Translate3D(0.0, 0.0, 0.0),
+		Origin:      mgl64.Translate3D(0.0, 0.0, 0.0),
 	}
 
 	return
 }
 
+func NewKinematicPlatform(node hardware.ControlNode, actuators []PlatformActuator) (kp *KinematicPlatform) {
+	return &KinematicPlatform{
+		Node:        node,
+		Actuators:   actuators,
+		Rotation:    mgl64.QuatIdent(),
+		Translation: mgl64.Translate3D(0.0, 0.0, 0.0),
+		Origin:      mgl64.Translate3D(0.0, 0.0, 0.0),
+	}
+}
+
 // Sets the rotation for the current platform in radians.
-func (p *RearfootPlatform) SetRotation(z, y, x float64) {
+func (p *KinematicPlatform) SetRotation(z, y, x float64) {
 	p.Rotation = mgl64.AnglesToQuat(z, y, x, mgl64.ZYX)
 }
 
-func (p *RearfootPlatform) SetTranslation(x, y, z float64) {
+// sets the drop angle for the first ray in radians
+func (p *KinematicPlatform) SetFRDrop(r float64) {
+	p.FRRotation = mgl64.AnglesToQuat(0, 0, r, mgl64.ZYX)
+}
+
+func (p *KinematicPlatform) SetTranslation(x, y, z float64) {
 	p.Translation = mgl64.Translate3D(x, y, z)
 }
 
-func (p *RearfootPlatform) SetOrigin(x, y, z float64) {
+func (p *KinematicPlatform) SetOrigin(x, y, z float64) {
 	p.Origin = mgl64.Translate3D(x, y, z)
 }
 
-func (p *RearfootPlatform) CalculateActions() (actions []actuatorAction) {
-	// create our return value
-	actions = make([]actuatorAction, len(p.minL))
-
+func (p *KinematicPlatform) Set() (err error) {
 	// create a few local copies of useful variables in slightly different formats
 	oInv := p.Origin.Inv()
 	rotate := p.Rotation.Mat4()
@@ -87,30 +108,52 @@ func (p *RearfootPlatform) CalculateActions() (actions []actuatorAction) {
 	// apply final translation
 	transform = transform.Mul4(p.Translation)
 
-	var maxTarget uint8
-	for i := 0; i < len(p.LE); i++ {
-		bp := p.BasePoints[i]
-		pp := p.PlatformPoints[i]
+	var maxChange float64
+	actions := make([]actuatorAction, len(p.Actuators))
+	for i, actuator := range p.Actuators {
+		lp := actuator.LowerCoords
+		up := actuator.UpperCoords
 
-		tp := mgl64.TransformCoordinate(pp, transform)
+		// if we are working with the 4 acuator version this is the first ray
+		// calculate the correct upper position of the rotation
+		if i == 3 {
+			frTrans := mgl64.Ident4()
+			frTrans = frTrans.Mul4(p.FROrigin)
+			frTrans = frTrans.Mul4(p.FRRotation.Mat4())
+			frTrans = frTrans.Mul4(p.FROrigin.Inv())
 
-		delta := tp.Sub(bp)
-		target := uint8(Round(Sqrt(Pow(delta.X(), 2)+Pow(delta.Y(), 2)+Pow(delta.Z(), 2)) - p.minL[i]))
-		if target > maxTarget {
-			maxTarget = target
+			up = mgl64.TransformCoordinate(up, frTrans)
 		}
 
-		actions[i] = actuatorAction{
-			target: target,
+		tp := mgl64.TransformCoordinate(up, transform)
+
+		delta := tp.Sub(lp)
+		target := Round(Sqrt(Pow(delta.X(), 2)+Pow(delta.Y(), 2)+Pow(delta.Z(), 2)) - actuator.minHeight())
+
+		if target < 0 {
+			return fmt.Errorf("impossible position request, actuator %d require negative position %f0", i, target)
 		}
+
+		var action = actuatorAction{
+			actuator: actuator,
+			target:   target,
+		}
+		action.change = Abs(action.target - float64(actuator.GetTarget()))
+
+		if action.change > maxChange {
+			maxChange = action.change
+		}
+
+		actions[i] = action
 	}
 
 	var speedSlope float64
-	speedSlope = 255.0 / float64(maxTarget+1)
+	speedSlope = 255.0 / maxChange
 
-	for i, a := range actions {
-		actions[i].speed = uint8(Round(float64(a.target+1) * speedSlope))
+	for _, action := range actions {
+		speed := uint8(Round(action.change * speedSlope))
+		action.actuator.SetTarget(uint8(action.target), speed)
 	}
 
-	return actions
+	return p.Node.StageCommit()
 }

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/keroserene/go-webrtc"
-	"io"
-	"time"
+	//"io"
+	//"time"
 	"github.com/CodedInternet/godynastat/onboard"
 )
 
@@ -20,11 +20,11 @@ type WebRTCClient struct {
 type Cmd struct {
 	Cmd   string
 	Name  string
-	Value int
+	Value float64
 }
 
 type Conductor struct {
-	Device           onboard.DynastatInterface
+	Device           *onboard.ActuatorDynastat
 	clients          []*WebRTCClient
 	signalingServers []*websocket.Conn
 }
@@ -102,7 +102,7 @@ func (client *WebRTCClient) AddIceCandidate(msg string) error {
 	}
 
 	client.pc.AddIceCandidate(*ic)
-	fmt.Printf("added ice candidate: %s\n", ic)
+	fmt.Printf("added ice candidate: %s\n", ic.Serialize())
 	return nil
 }
 
@@ -118,28 +118,12 @@ func (client *WebRTCClient) receiveMessage(msg []byte) {
 
 func (c *Conductor) ProcessCommand(cmd Cmd) {
 	switch cmd.Cmd {
-	case "set_motor":
-		c.Device.SetMotor(cmd.Name, cmd.Value)
+	case "set_height":
+		c.Device.SetHeight(cmd.Name, cmd.Value)
 		break
 
-	case "home_motor":
-		err := c.Device.HomeMotor(cmd.Name)
-		if err != nil {
-			fmt.Errorf("%s\n", err)
-		}
-		break
-
-	case "motor_goto_raw":
-		c.Device.GotoMotorRaw(cmd.Name, cmd.Value)
-		break
-
-	case "motor_write_raw":
-		c.Device.WriteMotorRaw(cmd.Name, cmd.Value)
-		break
-
-	case "motor_record_home":
-		reverse := cmd.Value != 0
-		c.Device.RecordMotorHome(cmd.Name, reverse)
+	case "set_frontal":
+		c.Device.SetRotation(cmd.Name, cmd.Value, 0)
 		break
 
 		//case "persist_config":
@@ -154,29 +138,29 @@ func (c *Conductor) ProcessCommand(cmd Cmd) {
 }
 
 func (c *Conductor) UpdateClients() {
-	for {
-		state, err := c.Device.GetState()
-		if err != nil {
-			switch err {
-			case io.EOF:
-				fmt.Println("Recieved EOF, continuing")
-				continue
-			default:
-				panic(err)
-			}
-		}
-		msg, err := json.Marshal(state)
-		if err != nil {
-			panic(err)
-		}
-		for _, client := range c.clients {
-			if client.tx != nil && client.tx.ReadyState() == webrtc.DataStateOpen {
-				client.tx.SendText(string(msg))
-			}
-		}
-
-		time.Sleep(time.Second / onboard.FRAMERATE)
-	}
+	//for {
+	//state, err := c.Device.GetState()
+	//if err != nil {
+	//	switch err {
+	//	case io.EOF:
+	//		fmt.Println("Recieved EOF, continuing")
+	//		continue
+	//	default:
+	//		panic(err)
+	//	}
+	//}
+	//msg, err := json.Marshal(state)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//for _, client := range c.clients {
+	//	if client.tx != nil && client.tx.ReadyState() == webrtc.DataStateOpen {
+	//		client.tx.SendText(string(msg))
+	//	}
+	//}
+	//
+	//time.Sleep(time.Second / onboard.FRAMERATE)
+	//}
 }
 
 func (c *Conductor) ReceiveOffer(msg string, signals chan<- string) (client *WebRTCClient, err error) {

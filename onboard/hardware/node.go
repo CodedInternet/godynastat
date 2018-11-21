@@ -19,9 +19,15 @@ var (
 	NodeVersion = "~0.1.0"
 )
 
-type ControlNode struct {
+type ControlNode interface {
+	Send(cmd NodeCommand) (NodeCommand, error)
+	StageReset() (err error)
+	StageCommit() (err error)
+}
+
+type MotorControlNode struct {
 	id         uint32
-	actuators  map[int]*Actuator
+	actuators  map[int]*LinearActuator
 	bus        canbus.CANBusInterface
 	lock       *sync.Mutex
 	pending    sync.WaitGroup
@@ -41,8 +47,8 @@ func newStatus() *cmdStatus {
 	}
 }
 
-func NewControlNode(bus canbus.CANBusInterface, id uint32) (n *ControlNode, err error) {
-	n = &ControlNode{
+func NewControlNode(bus canbus.CANBusInterface, id uint32) (n *MotorControlNode, err error) {
+	n = &MotorControlNode{
 		id:         id,
 		actuators:  nil,
 		bus:        bus,
@@ -81,6 +87,7 @@ func NewControlNode(bus canbus.CANBusInterface, id uint32) (n *ControlNode, err 
 		}
 	} else if version.dev == true {
 		// todo: Check if we are in dev mode rather than just accepting it
+		fmt.Printf("ruuning board %d in dev mode", id)
 	} else if version.sha != "" {
 		// todo: Check the commit hash against a list of acceptable commits. Perhaps this could be expanded to examine the git history?
 	} else {
@@ -91,7 +98,7 @@ func NewControlNode(bus canbus.CANBusInterface, id uint32) (n *ControlNode, err 
 	return
 }
 
-func (n *ControlNode) Send(cmd NodeCommand) (NodeCommand, error) {
+func (n *MotorControlNode) Send(cmd NodeCommand) (NodeCommand, error) {
 	var (
 		msg = canbus.CANMsg{
 			ID:   n.id,
@@ -145,14 +152,14 @@ func (n *ControlNode) Send(cmd NodeCommand) (NodeCommand, error) {
 	}
 }
 
-func (n *ControlNode) StageReset() (err error) {
+func (n *MotorControlNode) StageReset() (err error) {
 	n.abortPending()
 
 	n.Send(&EmptyCommand{cmdStageReset})
 	return
 }
 
-func (n *ControlNode) StageCommit() (err error) {
+func (n *MotorControlNode) StageCommit() (err error) {
 	ready := make(chan struct{})
 
 	go func() {
@@ -170,14 +177,14 @@ func (n *ControlNode) StageCommit() (err error) {
 	}
 }
 
-func (n *ControlNode) transmit(msg canbus.CANMsg) error {
+func (n *MotorControlNode) transmit(msg canbus.CANMsg) error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
 	return n.bus.SendMsg(msg)
 }
 
-func (n *ControlNode) listen(ready chan<- struct{}) {
+func (n *MotorControlNode) listen(ready chan<- struct{}) {
 	if n.rx == nil {
 		n.rx = make(chan canbus.CANMsg)
 	}
@@ -201,13 +208,13 @@ func (n *ControlNode) listen(ready chan<- struct{}) {
 	}
 }
 
-func (n *ControlNode) abortPending() {
+func (n *MotorControlNode) abortPending() {
 	for _, status := range n.pendingCmd {
 		close(status.err)
 	}
 }
 
-func (n *ControlNode) routeResp(resp NodeCommand) {
+func (n *MotorControlNode) routeResp(resp NodeCommand) {
 	c, ok := n.pendingCmd[resp.CID()]
 	if ok {
 		c.resp <- resp

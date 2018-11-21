@@ -3,11 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/CodedInternet/godynastat/comms"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"time"
-	"github.com/CodedInternet/godynastat/comms"
 )
 
 var upgrader = websocket.Upgrader{

@@ -45,12 +45,12 @@ func (t *testBus) SendMsg(msg canbus.CANMsg) error {
 	return nil
 }
 
-func createTestNodeBus() (tBus *testBus, tNode *ControlNode) {
+func createTestNodeBus() (tBus *testBus, tNode *MotorControlNode) {
 	tBus = &testBus{
 		listeners: make(map[uint32]chan canbus.CANMsg),
 	}
 
-	tNode = &ControlNode{
+	tNode = &MotorControlNode{
 		id:         0x1234,
 		actuators:  nil,
 		bus:        tBus,

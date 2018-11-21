@@ -1,153 +1,81 @@
 ---
-version: 1
+version: 2
 signalingservers:
 - ws://10.20.30.66:8000/ws/device/test/
-i2cbus:
-  sensor: 1
-uart:
-  motor: "/dev/ttyS2"
-motors:
-  left_foot_size:
-    address: 0x10
-    cal: -105000
-    low: 10000
-    high: -100000
-    speed: 255
-    damping: 255
-    control: 2
-  left_rearfoot_frontal:
-    address: 0x11
-    cal: -115
-    low: 80
-    high: -80
-    speed: 255
-    damping: 255
-    control: 5
-  left_rearfoot_inclination:
-    address: 0x12
-    cal: -290
-    low: 0
-    high: 180
-    speed: 255
-    damping: 0
-    control: 6
-  left_forefoot_frontal:
-    address: 0x13
-    cal: -315
-    low: 150
-    high: -150
-    speed: 200
-    damping: 255
-    control: 9
-  left_first_ray:
-    address: 0x14
-    cal: -600
-    low: -200
-    high: 0
-    speed: 30
-    damping: 127
-    control: 10
-
-  right_foot_size:
-    address: 0x20
-    cal: -105000
-    low: 10000
-    high: -100000
-    speed: 255
-    damping: 127
-    control: 1
-  right_rearfoot_frontal:
-    address: 0x21
-    cal: 120 # requires tape to actuate due to micro being too low
-    low: -80
-    high: 80
-    speed: 200
-    damping: 255
-    control: 3
-  right_rearfoot_inclination:
-    address: 0x22
-    cal: 370
-    low: 0
-    high: -225
-    speed: 255
-    damping: 0
-    control: 4
-  right_forefoot_frontal:
-    address: 0x23
-    cal: 420
-    low: -150
-    high: 150
-    speed: 50
-    damping: 255
-    control: 7
-  right_first_ray:
-    address: 0x24
-    cal: 700
-    low: 450
-    high: 0
-    speed: 30
-    damping: 127
-    control: 8
-
-sensors:
-  left_heel:
-    address: 0x15
-    mode: 2
-    registry: 1
-    mirror: y
-    rows: 12
-    cols: 12
-    zerovalue: 0
-    halfvalue: 2047
-    fullvalue: 4095
-  left_mtp:
-    address: 0x16
-    mode: 1
-    registry: 1
-    mirror: y
-    rows: 10
-    cols: 16
-    zerovalue: 0
-    halfvalue: 2047
-    fullvalue: 4095
-  left_hallux:
-    address: 0x16
-    mode: 1
-    registry: 2
-    mirror: y
-    rows: 12
-    cols: 6
-    zerovalue: 0
-    halfvalue: 2047
-    fullvalue: 4095
-
+platforms:
   right_heel:
-    address: 0x25
-    mode: 2
-    registry: 1
-    mirror: n
-    rows: 12
-    cols: 12
-    zerovalue: 0
-    halfvalue: 2047
-    fullvalue: 4095
-  right_mtp:
-    address: 0x26
-    mode: 1
-    registry: 1
-    mirror: n
-    rows: 10
-    cols: 16
-    zerovalue: 0
-    halfvalue: 2047
-    fullvalue: 4095
-  right_hallux:
-    address: 0x26
-    mode: 1
-    registry: 2
-    mirror: n
-    rows: 12
-    cols: 6
-    zerovalue: 0
-    halfvalue: 2047
-    fullvalue: 4095
+    stdaddr: 0x01
+    bus: can0
+    actuators:
+    - lower: [-57.5, 48, 25]
+      upper: [-38.6, 46, 285]
+      min: 260
+    - lower: [0, -75, 25]
+      upper: [0, -60, 285]
+      min: 260
+    - lower: [57.5, 48, 25]
+      upper: [38.6, 46, 285]
+      min: 260
+
+#sensors:
+#  left_heel:
+#    address: 0x15
+#    mode: 2
+#    registry: 1
+#    mirror: y
+#    rows: 12
+#    cols: 12
+#    zerovalue: 0
+#    halfvalue: 2047
+#    fullvalue: 4095
+#  left_mtp:
+#    address: 0x16
+#    mode: 1
+#    registry: 1
+#    mirror: y
+#    rows: 10
+#    cols: 16
+#    zerovalue: 0
+#    halfvalue: 2047
+#    fullvalue: 4095
+#  left_hallux:
+#    address: 0x16
+#    mode: 1
+#    registry: 2
+#    mirror: y
+#    rows: 12
+#    cols: 6
+#    zerovalue: 0
+#    halfvalue: 2047
+#    fullvalue: 4095
+#
+#  right_heel:
+#    address: 0x25
+#    mode: 2
+#    registry: 1
+#    mirror: n
+#    rows: 12
+#    cols: 12
+#    zerovalue: 0
+#    halfvalue: 2047
+#    fullvalue: 4095
+#  right_mtp:
+#    address: 0x26
+#    mode: 1
+#    registry: 1
+#    mirror: n
+#    rows: 10
+#    cols: 16
+#    zerovalue: 0
+#    halfvalue: 2047
+#    fullvalue: 4095
+#  right_hallux:
+#    address: 0x26
+#    mode: 1
+#    registry: 2
+#    mirror: n
+#    rows: 12
+#    cols: 6
+#    zerovalue: 0
+#    halfvalue: 2047
+#    fullvalue: 4095

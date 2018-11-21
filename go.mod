@@ -15,7 +15,7 @@ require (
 	github.com/flynn-archive/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/go-chi/chi v3.1.0+incompatible
 	github.com/go-chi/render v1.0.0
-	github.com/go-gl/mathgl v0.0.0-20180319210751-5ab0e04e1f55
+	github.com/go-gl/mathgl v0.0.0-20180804195959-cdf14b6b8f8a
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20170702153443-2b1d432c8a82 // indirect
 	github.com/gorilla/websocket v1.2.0

@@ -1,21 +1,30 @@
 package hardware
 
-type Actuator struct {
+type Actuator interface {
+	GetTarget() (target uint8)
+	SetTarget(target, speed uint8)
+}
+
+type LinearActuator struct {
 	State MotorState
 	Node  ControlNode // the parent node that controls this actuator
 	Index uint8       // the Index of the motor in the node. Range: 1-4
 	Ready bool        // sets to true when the node acknowledges the movement is staged.
 }
 
-func (m *Actuator) SetTarget(target uint8) {
-	m.Ready = false
-	m.State.Target = target
+func (a *LinearActuator) GetTarget() (target uint8) {
+	return a.State.Target
+}
+
+func (a *LinearActuator) SetTarget(target, speed uint8) {
+	a.Ready = false
+	a.State.Target = target
 
 	// blocks until success or err
-	_, err := m.Node.Send(&CMDStagePos{
-		m.Index,
-		m.State.Target,
-		255, // todo: make Speed dynamically controllable
+	_, err := a.Node.Send(&CMDStagePos{
+		a.Index,
+		a.State.Target,
+		speed,
 	})
 
 	if err != nil {
@@ -23,5 +32,5 @@ func (m *Actuator) SetTarget(target uint8) {
 		panic(err)
 	}
 
-	m.Ready = true
+	a.Ready = true
 }
