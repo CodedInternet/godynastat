@@ -13,7 +13,7 @@ RUN yarn
 RUN ember build
 
 # build main runtime image
-FROM balenalib/beaglebone-black-golang:1.11
+FROM balenalib/beaglebone-black-golang:1.13
 
 # Enable systemd
 ENV INITSYSTEM on

@@ -13,6 +13,9 @@ var (
 )
 
 type Dynastat interface {
+	SetRotation(platform string, degFront, degInc float64) (err error)
+	SetHeight(platform string, height float64) (err error)
+	SetFirstRay(platform string, angle float64) (err error)
 }
 
 type ActuatorDynastat struct {
