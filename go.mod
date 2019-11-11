@@ -8,7 +8,7 @@ require (
 	github.com/Sereal/Sereal v0.0.0-20191108142857-925030a7cf14 // indirect
 	github.com/abiosoft/ishell v2.0.0+incompatible
 	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db // indirect
-	github.com/asdine/storm v2.1.2+incompatible
+	github.com/asdine/storm/v3 v3.0.0
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/chzyer/logex v1.1.10 // indirect
 	github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1 // indirect

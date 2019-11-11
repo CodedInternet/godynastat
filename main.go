@@ -6,7 +6,7 @@ import (
 	"github.com/CodedInternet/godynastat/comms"
 	. "github.com/CodedInternet/godynastat/onboard"
 	"github.com/abiosoft/ishell"
-	"github.com/asdine/storm"
+	"github.com/asdine/storm/v3"
 	"github.com/caarlos0/env"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"

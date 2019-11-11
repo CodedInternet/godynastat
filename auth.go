@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/asdine/storm"
+	"github.com/asdine/storm/v3"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/render"
 	"golang.org/x/crypto/bcrypt"
@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	JWT_HMAC_SECRET []byte        = []byte("xWumOlRfhu+LBi2F2e1yF4FiaopQ5mr8klL4fpILnlI=")
-	JWT_LIFESPAN    time.Duration = time.Hour
+	JWT_HMAC_SECRET = []byte("xWumOlRfhu+LBi2F2e1yF4FiaopQ5mr8klL4fpILnlI=")
+	JWT_LIFESPAN    = time.Hour
 )
 
 //---
