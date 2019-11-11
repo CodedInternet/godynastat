@@ -328,11 +328,16 @@ func BenchmarkConductor_ReceiveOffer(b *testing.B) {
 	}
 	signals := make(chan string, 1)
 
-	for n := 0; n < b.N; n++ {
-		conductor.ReceiveOffer(string(offerJson), signals)
-	}
+	var c *WebRTCClient
 
-	if b.N < 10 {
-		b.Fatalf("Expected to run more than 10 times, only ran %d", b.N)
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		c, err = conductor.ReceiveOffer(string(offerJson), signals)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+	if c == nil {
+		b.Fatalf("client has not been defined")
 	}
 }

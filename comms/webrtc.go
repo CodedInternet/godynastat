@@ -42,15 +42,22 @@ func NewWebRTCClient(
 
 	config := webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
-			//{URLs: []string{"stun:stun.stunprotocol.org:3478"}},
+			{URLs: []string{"stun:stun.stunprotocol.org:3478"}},
 			{URLs: []string{"stun:stun.l.google.com:19302"}},
-			//{URLs: []string{"stun:stun1.l.google.com:19302"}},
-			//{URLs: []string{"stun:stun2.l.google.com:19302"}},
-			//{URLs: []string{"stun:stun3.l.google.com:19302"}},
-			//{URLs: []string{"stun:stun4.l.google.com:19302"}},
+			{URLs: []string{"stun:stun1.l.google.com:19302"}},
+			{URLs: []string{"stun:stun2.l.google.com:19302"}},
+			{URLs: []string{"stun:stun3.l.google.com:19302"}},
+			{URLs: []string{"stun:stun4.l.google.com:19302"}},
 		},
 	}
-	client.pc, err = webrtc.NewPeerConnection(config)
+
+	// Create a new API with Trickle ICE enabled
+	// This SettingEngine allows non-standard WebRTC behavior
+	s := webrtc.SettingEngine{}
+	s.SetTrickle(true)
+	api := webrtc.NewAPI(webrtc.WithSettingEngine(s))
+
+	client.pc, err = api.NewPeerConnection(config)
 	if err != nil {
 		return
 	}
