@@ -7,7 +7,7 @@ import (
 	. "github.com/CodedInternet/godynastat/onboard"
 	"github.com/abiosoft/ishell"
 	"github.com/asdine/storm/v3"
-	"github.com/caarlos0/env"
+	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"gopkg.in/yaml.v2"

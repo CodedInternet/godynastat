@@ -11,8 +11,8 @@ github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db h1:CjPUSXOiYptLb
 github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db/go.mod h1:rB3B4rKii8V21ydCbIzH5hZiCQE7f5E9SzUb/ZZx530=
 github.com/asdine/storm/v3 v3.0.0 h1:J/yRhUOSGY5XZp24Yv2cfyCtVtcLSAtJPOMJA7GSBjg=
 github.com/asdine/storm/v3 v3.0.0/go.mod h1:wncSIXIbR3lvJQhBpnwAeNPQneL5Vx2KUox2jARUdmw=
-github.com/caarlos0/env v3.5.0+incompatible h1:Yy0UN8o9Wtr/jGHZDpCBLpNrzcFLLM2yixi/rBrKyJs=
-github.com/caarlos0/env v3.5.0+incompatible/go.mod h1:tdCsowwCzMLdkqRYDlHpZCp2UooDD3MspDBjZ2AD02Y=
+github.com/caarlos0/env/v6 v6.1.0 h1:4FbM+HmZA/Q5wdSrH2kj0KQXm7xnhuO8y3TuOTnOvqc=
+github.com/caarlos0/env/v6 v6.1.0/go.mod h1:iUA6X3VCAOwDhoqvgKlTGjjwJzQseIJaFYApUqQkt+8=
 github.com/cheekybits/genny v1.0.0 h1:uGGa4nei+j20rOSeDeP5Of12XVm7TGUd4dJA9RDitfE=
 github.com/cheekybits/genny v1.0.0/go.mod h1:+tQajlRqAUrPI7DOSpB0XAqZYtQakVtB7wXkRAgjxjQ=
 github.com/chzyer/logex v1.1.10 h1:Swpa1K6QvQznwJRcfTfQJmTE72DqScAa40E+fbHEXEE=
