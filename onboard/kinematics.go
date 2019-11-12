@@ -18,6 +18,7 @@ type KPlatform interface {
 	SetOrigin(x, y, z float64)
 	SetFRDrop(r float64)
 	Set() error
+	Home() error
 }
 
 type PlatformActuator struct {
@@ -74,6 +75,14 @@ func NewKinematicPlatform(node hardware.ControlNode, actuators []PlatformActuato
 		Translation: mgl64.Translate3D(0.0, 0.0, 0.0),
 		Origin:      mgl64.Translate3D(0.0, 0.0, 0.0),
 	}
+}
+
+func (p *KinematicPlatform) GetTranslation() (x, y, z float64) {
+	panic("implement me")
+}
+
+func (p *KinematicPlatform) GetFRDrop() (r float64) {
+	panic("implement me")
 }
 
 // Sets the rotation for the current platform in radians.
@@ -156,4 +165,8 @@ func (p *KinematicPlatform) Set() (err error) {
 	}
 
 	return p.Node.StageCommit()
+}
+
+func (p *KinematicPlatform) Home() (err error) {
+	return p.Node.Home()
 }

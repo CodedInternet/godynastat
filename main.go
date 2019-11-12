@@ -235,6 +235,7 @@ func main() {
 				c.Printf("Homing Motor %s\n", name)
 				dynastat.SetHeight(name, 0)
 				dynastat.SetRotation(name, 0, 0)
+				dynastat.HomePlatform(name)
 			},
 		})
 		//shell.AddCmd(&ishell.Cmd{

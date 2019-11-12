@@ -98,6 +98,15 @@ func (d *ActuatorDynastat) SetFirstRay(platform string, angle float64) (err erro
 	return p.Set()
 }
 
+func (d *ActuatorDynastat) HomePlatform(platform string) (err error) {
+	p, ok := d.Platforms[platform]
+	if !ok {
+		return fmt.Errorf("unable to find platform '%s'", platform)
+	}
+
+	return p.Home()
+}
+
 func (d *ActuatorDynastat) getBus(name string) (bus *canbus.CANBus, err error) {
 	bus, ok := d.can[name]
 	if !ok {

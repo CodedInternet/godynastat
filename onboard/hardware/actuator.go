@@ -1,6 +1,7 @@
 package hardware
 
 type Actuator interface {
+	GetCurrent() (current uint8)
 	GetTarget() (target uint8)
 	SetTarget(target, speed uint8)
 }
@@ -10,6 +11,10 @@ type LinearActuator struct {
 	Node  ControlNode // the parent node that controls this actuator
 	Index uint8       // the Index of the motor in the node. Range: 1-4
 	Ready bool        // sets to true when the node acknowledges the movement is staged.
+}
+
+func (a *LinearActuator) GetCurrent() (current uint8) {
+	return a.State.Current
 }
 
 func (a *LinearActuator) GetTarget() (target uint8) {

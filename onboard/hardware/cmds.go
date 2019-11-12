@@ -14,7 +14,7 @@ const (
 	cmdGetPos         = 0x0040
 	cmdSetPos         = 0x0050
 	cmdStagePos       = 0x0060
-	cmdCalibrate      = 0x0070
+	cmdHome           = 0x0070
 	cmdNvmUpdate      = 0x0080
 	cmdScanI2C        = 0x0090
 	cmdI2CRead        = 0x00A0
@@ -30,6 +30,7 @@ var (
 
 	// a map of all the custom command type ID's and the associated types. Can be used later
 	CMDMap = map[uint16]reflect.Type{
+		cmdGetPos:   reflect.TypeOf(CMDGetPos{}),
 		cmdSetPos:   reflect.TypeOf(CMDSetPos{}),
 		cmdStagePos: reflect.TypeOf(CMDStagePos{}),
 		cmdVersion:  reflect.TypeOf(CMDVersion{}),
@@ -78,6 +79,28 @@ func (c *EmptyCommand) TXData() []byte {
 
 func (c *EmptyCommand) RXData([]byte) {
 	return
+}
+
+type CMDGetPos struct {
+	Positions [4]uint8
+}
+
+func (c *CMDGetPos) CID() uint16 {
+	return c.CMD()
+}
+
+func (c *CMDGetPos) CMD() uint16 {
+	return cmdGetPos
+}
+
+func (c *CMDGetPos) TXData() []byte {
+	return make([]byte, 0)
+}
+
+func (c *CMDGetPos) RXData(data []byte) {
+	for _, i := range c.Positions {
+		c.Positions[i] = data[i]
+	}
 }
 
 // Command to take set an actuator to a Position directly without staging the movement

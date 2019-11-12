@@ -3,6 +3,7 @@ package hardware
 import (
 	"errors"
 	"github.com/CodedInternet/godynastat/onboard/canbus"
+	"os"
 	"sync"
 	"time"
 
@@ -11,8 +12,9 @@ import (
 )
 
 const (
-	nodeCmdMaxRetries = 5
-	nodeCmdTimeout    = 50 * time.Millisecond
+	nodeCmdMaxRetries       = 5
+	nodeCmdTimeout          = 50 * time.Millisecond
+	nodeMotorUpdateInterval = 100 * time.Millisecond
 )
 
 var (
@@ -23,6 +25,7 @@ type ControlNode interface {
 	Send(cmd NodeCommand) (NodeCommand, error)
 	StageReset() (err error)
 	StageCommit() (err error)
+	Home() (err error)
 }
 
 type MotorControlNode struct {
@@ -87,7 +90,7 @@ func NewControlNode(bus canbus.CANBusInterface, id uint32) (n *MotorControlNode,
 		}
 	} else if version.dev == true {
 		// todo: Check if we are in dev mode rather than just accepting it
-		fmt.Printf("ruuning board %d in dev mode", id)
+		fmt.Printf("ruuning board %d in dev mode\n", id)
 	} else if version.sha != "" {
 		// todo: Check the commit hash against a list of acceptable commits. Perhaps this could be expanded to examine the git history?
 	} else {
@@ -95,9 +98,13 @@ func NewControlNode(bus canbus.CANBusInterface, id uint32) (n *MotorControlNode,
 		err = fmt.Errorf("unable to use node %d: unkown version", id)
 	}
 
+	//go n.updatePositions()
+
 	return
 }
 
+// Sends a command to the node and awaits a response which is returned.
+// This is a synchronous function around an async behavior, and is controlled by an internal timeout.
 func (n *MotorControlNode) Send(cmd NodeCommand) (NodeCommand, error) {
 	var (
 		msg = canbus.CANMsg{
@@ -155,7 +162,7 @@ func (n *MotorControlNode) Send(cmd NodeCommand) (NodeCommand, error) {
 func (n *MotorControlNode) StageReset() (err error) {
 	n.abortPending()
 
-	n.Send(&EmptyCommand{cmdStageReset})
+	_, err = n.Send(&EmptyCommand{cmdStageReset})
 	return
 }
 
@@ -169,12 +176,17 @@ func (n *MotorControlNode) StageCommit() (err error) {
 
 	select {
 	case <-ready:
-		n.Send(&EmptyCommand{cmdStageCommit})
+		_, err = n.Send(&EmptyCommand{cmdStageCommit})
 		return
 
 	case <-time.After(time.Second):
 		return errors.New("timed out waiting for staged commands")
 	}
+}
+
+func (n *MotorControlNode) Home() (err error) {
+	_, err = n.Send(&EmptyCommand{cmdHome})
+	return
 }
 
 func (n *MotorControlNode) transmit(msg canbus.CANMsg) error {
@@ -218,5 +230,21 @@ func (n *MotorControlNode) routeResp(resp NodeCommand) {
 	c, ok := n.pendingCmd[resp.CID()]
 	if ok {
 		c.resp <- resp
+	}
+}
+
+func (n *MotorControlNode) updatePositions() {
+	for {
+		resp, err := n.Send(&CMDGetPos{})
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "unable to update position: %s", err.Error())
+		}
+
+		getPos := resp.(*CMDGetPos)
+		for i, actuator := range n.actuators {
+			actuator.State.Current = getPos.Positions[i]
+		}
+
+		time.Sleep(nodeMotorUpdateInterval)
 	}
 }

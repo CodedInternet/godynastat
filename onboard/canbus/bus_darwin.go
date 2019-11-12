@@ -45,7 +45,9 @@ func (c *CANBus) writer() {
 		fmt.Printf("writing: %s", msg)
 		// echo back
 		resp := nodeMsgFromByteArray(msg)
-		c.Rx[resp.ID] <- *resp
+		if resp != nil {
+			c.Rx[resp.ID] <- *resp
+		}
 	}
 }
 
