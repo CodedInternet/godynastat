@@ -7,15 +7,15 @@ platforms:
     stdaddr: 0x01
     bus: can0
     actuators:
-    - lower: [-57.5, 48, 25]
-      upper: [-38.6, 46, 285]
-      min: 260
-    - lower: [0, -75, 25]
-      upper: [0, -60, 285]
-      min: 260
-    - lower: [57.5, 48, 25]
-      upper: [38.6, 46, 285]
-      min: 260
+    - lower: [-53.5, 28, -235]
+      upper: [-52, 30, -0]
+      min: 210
+    - lower: [0, -95, -235]
+      upper: [0, -60, -0]
+      min: 210
+    - lower: [53.5, 48, -235]
+      upper: [52, 28, -0]
+      min: 210
 
 #sensors:
 #  left_heel:
