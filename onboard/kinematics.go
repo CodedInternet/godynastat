@@ -9,7 +9,7 @@ import (
 
 const (
 	mMin = 0
-	mMax = 10000
+	mMax = 75
 )
 
 type KPlatform interface {
@@ -161,10 +161,17 @@ func (p *KinematicPlatform) Set() (err error) {
 
 	for _, action := range actions {
 		speed := uint8(Round(action.change * speedSlope))
-		action.actuator.SetTarget(uint8(action.target), speed)
+		action.actuator.SetTarget(action.target)
+		action.actuator.SetSpeed(speed)
 	}
 
-	return p.Node.StageCommit()
+	err = p.Node.SetSpeeds()
+	if err != nil {
+		return
+	}
+	err = p.Node.SetTargets()
+
+	return
 }
 
 func (p *KinematicPlatform) Home() (err error) {

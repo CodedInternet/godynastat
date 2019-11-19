@@ -1,7 +1,6 @@
 package hardware
 
 import (
-	"errors"
 	"github.com/CodedInternet/godynastat/onboard/canbus"
 	"os"
 	"sync"
@@ -23,19 +22,39 @@ var (
 
 type ControlNode interface {
 	Send(cmd NodeCommand) (NodeCommand, error)
-	StageReset() (err error)
-	StageCommit() (err error)
+	SetTargets() (err error)
+	SetSpeeds() (err error)
 	Home() (err error)
 }
 
 type MotorControlNode struct {
 	id         uint32
-	actuators  map[int]*LinearActuator
+	Actuators  [4]*LinearActuator
 	bus        canbus.CANBusInterface
 	lock       *sync.Mutex
 	pending    sync.WaitGroup
 	pendingCmd map[uint16]*cmdStatus
 	rx         chan canbus.CANMsg
+}
+
+func (n *MotorControlNode) SetTargets() (err error) {
+	_, err = n.Send(&CMDSetPos{[4]uint16{
+		n.Actuators[0].State.Target,
+		n.Actuators[1].State.Target,
+		n.Actuators[2].State.Target,
+		n.Actuators[3].State.Target,
+	}})
+	return
+}
+
+func (n *MotorControlNode) SetSpeeds() (err error) {
+	_, err = n.Send(&CMDSetSpeed{[4]uint8{
+		n.Actuators[0].State.MaxSpeed,
+		n.Actuators[1].State.MaxSpeed,
+		n.Actuators[2].State.MaxSpeed,
+		n.Actuators[3].State.MaxSpeed,
+	}})
+	return
 }
 
 type cmdStatus struct {
@@ -52,13 +71,22 @@ func newStatus() *cmdStatus {
 
 func NewControlNode(bus canbus.CANBusInterface, id uint32) (n *MotorControlNode, err error) {
 	n = &MotorControlNode{
-		id:         id,
-		actuators:  nil,
+		id: id,
+		Actuators: [4]*LinearActuator{
+			new(LinearActuator),
+			new(LinearActuator),
+			new(LinearActuator),
+			new(LinearActuator),
+		},
 		bus:        bus,
 		lock:       new(sync.Mutex),
 		pending:    sync.WaitGroup{},
 		pendingCmd: make(map[uint16]*cmdStatus),
 		rx:         make(chan canbus.CANMsg), // override to be a buffered channel
+	}
+
+	for i := range n.Actuators {
+		n.Actuators[i].Node = n
 	}
 
 	ready := make(chan struct{})
@@ -159,31 +187,6 @@ func (n *MotorControlNode) Send(cmd NodeCommand) (NodeCommand, error) {
 	}
 }
 
-func (n *MotorControlNode) StageReset() (err error) {
-	n.abortPending()
-
-	_, err = n.Send(&EmptyCommand{cmdStageReset})
-	return
-}
-
-func (n *MotorControlNode) StageCommit() (err error) {
-	ready := make(chan struct{})
-
-	go func() {
-		defer close(ready)
-		n.pending.Wait()
-	}()
-
-	select {
-	case <-ready:
-		_, err = n.Send(&EmptyCommand{cmdStageCommit})
-		return
-
-	case <-time.After(time.Second):
-		return errors.New("timed out waiting for staged commands")
-	}
-}
-
 func (n *MotorControlNode) Home() (err error) {
 	_, err = n.Send(&EmptyCommand{cmdHome})
 	return
@@ -241,7 +244,7 @@ func (n *MotorControlNode) updatePositions() {
 		}
 
 		getPos := resp.(*CMDGetPos)
-		for i, actuator := range n.actuators {
+		for i, actuator := range n.Actuators {
 			actuator.State.Current = getPos.Positions[i]
 		}
 

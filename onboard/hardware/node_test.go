@@ -51,8 +51,13 @@ func createTestNodeBus() (tBus *testBus, tNode *MotorControlNode) {
 	}
 
 	tNode = &MotorControlNode{
-		id:         0x1234,
-		actuators:  nil,
+		id: 0x1234,
+		Actuators: [4]*LinearActuator{
+			new(LinearActuator),
+			new(LinearActuator),
+			new(LinearActuator),
+			new(LinearActuator),
+		},
 		bus:        tBus,
 		lock:       new(sync.Mutex),
 		pending:    sync.WaitGroup{},
@@ -84,35 +89,18 @@ func TestControlNode(t *testing.T) {
 	Convey("listener is added", t, func() {
 		So(tBus.listeners[node.id], ShouldNotBeNil)
 
-		Convey("command stage works correctly", func() {
+		Convey("node pulls data from actuators correctly", func() {
 			tBus.rxecho = true // were entering the ACK command stage
 
-			Convey("reset issues reset command", func() {
-				err := node.StageReset()
+			for i, a := range node.Actuators {
+				a.SetTarget(float64(i + 1))
+			}
+			err := node.SetTargets()
 
-				So(err, ShouldBeNil)
-				So(tBus.lastTx.Cmd, ShouldEqual, cmdStageReset)
-			})
-
-			Convey("commit blocks until queue pending is ready", func() {
-				node.pending.Add(1)
-				err := node.StageCommit()
-				So(err, ShouldBeError)
-
-				Convey("does not time out when queue is clear", func() {
-					// use a goroutine to trigger the pending clear
-					go func() {
-						node.pending.Done()
-					}()
-					err := node.StageCommit()
-
-					So(err, ShouldBeNil)
-				})
-			})
-
-			Reset(func() {
-				tBus.rxecho = false
-			})
+			So(err, ShouldBeNil)
+			So(tBus.lastTx.Cmd, ShouldEqual, cmdSetPos)
+			So(tBus.lastTx.Data, ShouldHaveLength, 8)
+			So(tBus.lastTx.Data, ShouldResemble, []byte{3, 105, 6, 210, 10, 59, 13, 164}) // correct values for 75mm
 		})
 
 		Convey("commands get sent correctly", func() {
@@ -158,13 +146,17 @@ func TestControlNode(t *testing.T) {
 
 				Convey("a more complex example involving reflection", func() {
 					tBus.txCount = 0
-					cmd := &CMDSetPos{12, 34, 56}
+					cmd := &CMDSetPos{[4]uint16{
+						0x0102,
+						0x0304,
+						0x0506,
+						0x0708,
+					}}
 
 					resp, err := node.Send(cmd)
 
 					So(err, ShouldBeNil)
 					So(resp, ShouldHaveSameTypeAs, cmd)
-					So(resp, ShouldResemble, cmd)
 				})
 
 				Reset(func() {

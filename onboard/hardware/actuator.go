@@ -1,9 +1,19 @@
 package hardware
 
+import (
+	. "math"
+)
+
+const (
+	mMax   = 75
+	mIncmm = 0xFFFF / mMax
+)
+
 type Actuator interface {
-	GetCurrent() (current uint8)
-	GetTarget() (target uint8)
-	SetTarget(target, speed uint8)
+	GetCurrent() (current float64)
+	GetTarget() (target float64)
+	SetTarget(target float64)
+	SetSpeed(speed uint8)
 }
 
 type LinearActuator struct {
@@ -13,29 +23,18 @@ type LinearActuator struct {
 	Ready bool        // sets to true when the node acknowledges the movement is staged.
 }
 
-func (a *LinearActuator) GetCurrent() (current uint8) {
-	return a.State.Current
+func (a *LinearActuator) GetCurrent() (current float64) {
+	return float64(a.State.Current / mIncmm)
 }
 
-func (a *LinearActuator) GetTarget() (target uint8) {
-	return a.State.Target
+func (a *LinearActuator) GetTarget() (target float64) {
+	return float64(a.State.Target / mIncmm)
 }
 
-func (a *LinearActuator) SetTarget(target, speed uint8) {
-	a.Ready = false
-	a.State.Target = target
+func (a *LinearActuator) SetTarget(target float64) {
+	a.State.Target = uint16(Round(target * mIncmm))
+}
 
-	// blocks until success or err
-	_, err := a.Node.Send(&CMDStagePos{
-		a.Index,
-		a.State.Target,
-		speed,
-	})
-
-	if err != nil {
-		// TODO: handle error
-		panic(err)
-	}
-
-	a.Ready = true
+func (a *LinearActuator) SetSpeed(speed uint8) {
+	a.State.MaxSpeed = speed
 }

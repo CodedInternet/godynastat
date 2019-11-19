@@ -9,33 +9,47 @@ import (
 )
 
 type TestActuator struct {
-	target, speed uint8
+	current, target    float64
+	maxSpeed, curSpeed uint8
 }
 
-func (t *TestActuator) GetTarget() (target uint8) {
+func (t *TestActuator) GetCurrent() (current float64) {
+	return t.current
+}
+
+func (t *TestActuator) GetTarget() (target float64) {
 	return t.target
 }
 
-func (t *TestActuator) SetTarget(target, speed uint8) {
+func (t *TestActuator) SetTarget(target float64) {
 	t.target = target
-	t.speed = speed
+}
+
+func (t *TestActuator) SetSpeed(speed uint8) {
+	t.maxSpeed = speed
 }
 
 type TestControlNode struct {
-	commited bool
+	targetSet, speedSet, homed bool
+}
+
+func (t *TestControlNode) SetTargets() (err error) {
+	t.targetSet = true
+	return nil
+}
+
+func (t *TestControlNode) SetSpeeds() (err error) {
+	t.speedSet = true
+	return nil
+}
+
+func (t *TestControlNode) Home() (err error) {
+	t.homed = true
+	return nil
 }
 
 func (*TestControlNode) Send(cmd hardware.NodeCommand) (hardware.NodeCommand, error) {
 	panic("implement me")
-}
-
-func (*TestControlNode) StageReset() (err error) {
-	panic("implement me")
-}
-
-func (t *TestControlNode) StageCommit() (err error) {
-	t.commited = true
-	return
 }
 
 func genActuatorConfig(numPoints int, baseRadius, platformRadius, minLegLength float64) (config []PlatformActuator, testActuators []*TestActuator) {
@@ -89,9 +103,10 @@ func TestRearfootPlatform(t *testing.T) {
 		Convey("with 0 values, a zero leg extension is reported", func() {
 			platform.SetRotation(0, 0, 0)
 			platform.SetTranslation(0, 0, 0)
-			platform.Set()
+			So(platform.Set(), ShouldBeNil)
 
-			So(testControlNode.commited, ShouldEqual, true)
+			So(testControlNode.speedSet, ShouldEqual, true)
+			So(testControlNode.targetSet, ShouldEqual, true)
 
 			for i := 0; i < 3; i++ {
 				So(testActuators[i].target, ShouldEqual, 0)
@@ -101,58 +116,62 @@ func TestRearfootPlatform(t *testing.T) {
 		Convey("extremes of height are correct", func() {
 			platform.SetRotation(0, 0, 0)
 			platform.SetTranslation(0, 0, 100)
-			platform.Set()
+			So(platform.Set(), ShouldBeNil)
 
-			So(testControlNode.commited, ShouldEqual, true)
+			So(testControlNode.speedSet, ShouldEqual, true)
+			So(testControlNode.targetSet, ShouldEqual, true)
 
 			for i := 0; i < 3; i++ {
 				So(testActuators[i].target, ShouldEqual, 100)
-				So(testActuators[i].speed, ShouldEqual, 255)
+				So(testActuators[i].maxSpeed, ShouldEqual, 255)
 			}
 		})
 
 		Convey("midrange height is correct for angle calculations", func() {
 			platform.SetRotation(0, 0, 0)
 			platform.SetTranslation(0, 0, 50)
-			platform.Set()
+			So(platform.Set(), ShouldBeNil)
 
-			So(testControlNode.commited, ShouldEqual, true)
+			So(testControlNode.speedSet, ShouldEqual, true)
+			So(testControlNode.targetSet, ShouldEqual, true)
 
 			for i := 0; i < 3; i++ {
 				So(testActuators[i].target, ShouldEqual, 50)
-				So(testActuators[i].speed, ShouldEqual, 255)
+				So(testActuators[i].maxSpeed, ShouldEqual, 255)
 			}
 
 			Convey("10º roll", func() {
 				platform.SetRotation(0, mgl64.DegToRad(10), 0)
-				platform.Set()
+				So(platform.Set(), ShouldBeNil)
 
-				So(testControlNode.commited, ShouldEqual, true)
+				So(testControlNode.speedSet, ShouldEqual, true)
+				So(testControlNode.targetSet, ShouldEqual, true)
 
 				// we can't be overly precise due to FPE
 				So(testActuators[0].target, ShouldAlmostEqual, 50, 1)
-				So(testActuators[0].speed, ShouldAlmostEqual, 0, 1)
+				So(testActuators[0].maxSpeed, ShouldAlmostEqual, 0, 1)
 				So(testActuators[1].target, ShouldAlmostEqual, 43, 1)
-				So(testActuators[1].speed, ShouldAlmostEqual, 255, 1)
+				So(testActuators[1].maxSpeed, ShouldAlmostEqual, 255, 1)
 				So(testActuators[2].target, ShouldAlmostEqual, 57, 1)
-				So(testActuators[1].speed, ShouldAlmostEqual, 255, 1)
+				So(testActuators[1].maxSpeed, ShouldAlmostEqual, 255, 1)
 
 				// moving form the centre
 			})
 
 			Convey("10º pitch", func() {
 				platform.SetRotation(0, 0, mgl64.DegToRad(10))
-				platform.Set()
+				So(platform.Set(), ShouldBeNil)
 
-				So(testControlNode.commited, ShouldEqual, true)
+				So(testControlNode.speedSet, ShouldEqual, true)
+				So(testControlNode.targetSet, ShouldEqual, true)
 
 				// we can't be overly precise due to FPE
 				So(testActuators[0].target, ShouldAlmostEqual, 59, 1)
-				So(testActuators[0].speed, ShouldEqual, 255)
+				So(testActuators[0].maxSpeed, ShouldEqual, 255)
 				So(testActuators[1].target, ShouldAlmostEqual, 46, 1)
-				So(testActuators[1].speed, ShouldAlmostEqual, 113, 1)
+				So(testActuators[1].maxSpeed, ShouldAlmostEqual, 113, 1)
 				So(testActuators[2].target, ShouldAlmostEqual, 46, 1)
-				So(testActuators[2].speed, ShouldAlmostEqual, 113, 1)
+				So(testActuators[2].maxSpeed, ShouldAlmostEqual, 113, 1)
 
 			})
 
@@ -161,17 +180,18 @@ func TestRearfootPlatform(t *testing.T) {
 				platform.SetOrigin(0, 50, 0)
 
 				platform.SetRotation(0, 0, mgl64.DegToRad(10))
-				platform.Set()
+				So(platform.Set(), ShouldBeNil)
 
-				So(testControlNode.commited, ShouldEqual, true)
+				So(testControlNode.speedSet, ShouldEqual, true)
+				So(testControlNode.targetSet, ShouldEqual, true)
 
 				// we can't be overly precise due to FPE
 				So(testActuators[0].target, ShouldAlmostEqual, 50, 1)
-				So(testActuators[0].speed, ShouldAlmostEqual, 0, 1)
+				So(testActuators[0].maxSpeed, ShouldAlmostEqual, 0, 1)
 				So(testActuators[1].target, ShouldAlmostEqual, 37, 1)
-				So(testActuators[1].speed, ShouldAlmostEqual, 255, 1)
+				So(testActuators[1].maxSpeed, ShouldAlmostEqual, 255, 1)
 				So(testActuators[2].target, ShouldAlmostEqual, 37, 1)
-				So(testActuators[2].speed, ShouldAlmostEqual, 255, 1)
+				So(testActuators[2].maxSpeed, ShouldAlmostEqual, 255, 1)
 
 			})
 		})

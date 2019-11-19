@@ -1,7 +1,8 @@
 package hardware
 
 type MotorState struct {
-	Target, Current, Speed uint8
+	Target, Current    uint16
+	MaxSpeed, CurSpeed uint8
 }
 
 type MotorInterface interface {

@@ -52,7 +52,7 @@ func main() {
 
 	fmt.Println("Staging some movements")
 
-	moveCmd := &hardware.CMDStagePos{
+	moveCmd := &hardware.CMDSetSpeed{
 		Position: pos,
 		Speed:    speed,
 	}

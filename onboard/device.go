@@ -51,10 +51,7 @@ func NewActuatorDynastat(config DynastatConfig) (d *ActuatorDynastat, err error)
 			actuators := make([]PlatformActuator, len(pConf.Actuators))
 
 			for mIndex, actuator := range pConf.Actuators {
-				actuator.Actuator = &hardware.LinearActuator{
-					Node:  node,
-					Index: uint8(mIndex + 1), // control boards use 1 based indexing
-				}
+				actuator.Actuator = node.Actuators[mIndex]
 				actuators[mIndex] = actuator
 			}
 

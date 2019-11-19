@@ -7,13 +7,13 @@ import (
 )
 
 const (
-	cmdAllstop        = 0x0000
-	cmdStageCommit    = 0x0010
-	cmdStageReset     = 0x0020
+	cmdAllstop  = 0x0000
+	cmdAllStart = 0x0010
+	//RESERVED	        = 0x0020
 	cmdUpdateInterval = 0x0030
 	cmdGetPos         = 0x0040
 	cmdSetPos         = 0x0050
-	cmdStagePos       = 0x0060
+	cmdSetSpeed       = 0x0060
 	cmdHome           = 0x0070
 	cmdNvmUpdate      = 0x0080
 	cmdScanI2C        = 0x0090
@@ -32,7 +32,7 @@ var (
 	CMDMap = map[uint16]reflect.Type{
 		cmdGetPos:   reflect.TypeOf(CMDGetPos{}),
 		cmdSetPos:   reflect.TypeOf(CMDSetPos{}),
-		cmdStagePos: reflect.TypeOf(CMDStagePos{}),
+		cmdSetSpeed: reflect.TypeOf(CMDSetSpeed{}),
 		cmdVersion:  reflect.TypeOf(CMDVersion{}),
 	}
 )
@@ -82,7 +82,7 @@ func (c *EmptyCommand) RXData([]byte) {
 }
 
 type CMDGetPos struct {
-	Positions [4]uint8
+	Positions [4]uint16
 }
 
 func (c *CMDGetPos) CID() uint16 {
@@ -99,19 +99,17 @@ func (c *CMDGetPos) TXData() []byte {
 
 func (c *CMDGetPos) RXData(data []byte) {
 	for _, i := range c.Positions {
-		c.Positions[i] = data[i]
+		c.Positions[i] = uint16(data[2*i]<<8 | data[2*i])
 	}
 }
 
 // Command to take set an actuator to a Position directly without staging the movement
 type CMDSetPos struct {
-	index    byte
-	position byte
-	speed    byte
+	Positions [4]uint16
 }
 
 func (c *CMDSetPos) CID() uint16 {
-	return c.CMD() & uint16(c.index)
+	return c.CMD()
 }
 
 func (*CMDSetPos) CMD() uint16 {
@@ -119,46 +117,45 @@ func (*CMDSetPos) CMD() uint16 {
 }
 
 func (c *CMDSetPos) TXData() []byte {
-	return []byte{
-		c.index,
-		c.position,
-		c.speed,
+	ret := make([]byte, len(c.Positions)*2)
+	for i, p := range c.Positions {
+		ret[2*i] = byte(p >> 8)
+		ret[2*i+1] = byte(p & 0xFF)
 	}
+	return ret
 }
 
 func (c *CMDSetPos) RXData(data []byte) {
-	c.index = data[0]
-	c.position = data[1]
-	c.speed = data[2]
-}
-
-// Command to stage a motor movement. Does not perform any action until a cmdStageCommit is received
-type CMDStagePos struct {
-	Index    byte
-	Position byte
-	Speed    byte
-}
-
-func (c *CMDStagePos) CID() uint16 {
-	return c.CMD() & uint16(c.Index)
-}
-
-func (*CMDStagePos) CMD() uint16 {
-	return cmdStagePos
-}
-
-func (c *CMDStagePos) TXData() []byte {
-	return []byte{
-		c.Index,
-		c.Position,
-		c.Speed,
+	for i := range c.Positions {
+		c.Positions[i] = uint16(data[2*i]<<8 | data[2*i])
 	}
 }
 
-func (c *CMDStagePos) RXData(data []byte) {
-	c.Index = data[0]
-	c.Position = data[1]
-	c.Speed = data[2]
+// Command to stage a motor movement. Does not perform any action until a cmdStageCommit is received
+type CMDSetSpeed struct {
+	Speeds [4]uint8
+}
+
+func (c *CMDSetSpeed) CID() uint16 {
+	return c.CMD()
+}
+
+func (*CMDSetSpeed) CMD() uint16 {
+	return cmdSetSpeed
+}
+
+func (c *CMDSetSpeed) TXData() []byte {
+	ret := make([]byte, len(c.Speeds))
+	for i, s := range c.Speeds {
+		ret[i] = s
+	}
+	return ret
+}
+
+func (c *CMDSetSpeed) RXData(data []byte) {
+	for _, i := range c.Speeds {
+		c.Speeds[i] = data[i]
+	}
 }
 
 type CMDVersion struct {
