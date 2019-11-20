@@ -112,19 +112,19 @@ func main() {
 		panic(fmt.Sprintf("Unable to unmarshal yaml: %v", err))
 	}
 
-	var dynastat *ActuatorDynastat
+	var dynastat Dynastat
+	shell := ishell.New()
 
 	ENV.Simulated = *simulated
-	//if ENV.Simulated {
-	//	println("Creating simulator")
-	//	dynastat = NewDynastatSimulator(&config)
-	//} else {
-	//	dynastat, err = NewDynastat(&config)
-	//	if err != nil {
-	//		panic(fmt.Sprintf("Unable to initialize dynastat: %v", err))
-	//	}
-	//}
-	dynastat, err = NewActuatorDynastat(config)
+	if ENV.Simulated {
+		println("Creating simulator")
+		dynastat = NewDynastatSimulator(&config, shell)
+	} else {
+		dynastat, err = NewActuatorDynastat(config)
+		if err != nil {
+			panic(fmt.Sprintf("Unable to initialize dynastat: %v", err))
+		}
+	}
 
 	ENV.Conductor = new(comms.Conductor)
 	ENV.Conductor.Device = dynastat
@@ -136,14 +136,9 @@ func main() {
 	//---
 	{
 		platformNames := func([]string) []string {
-			keys := make([]string, len(dynastat.Platforms))
-			for k := range dynastat.Platforms {
-				keys = append(keys, k)
-			}
-			return keys
+			return dynastat.GetPlatformNames()
 		}
 
-		shell := ishell.New()
 		shell.Println("Dynastat development shell")
 		shell.ShowPrompt(true)
 		shell.AddCmd(&ishell.Cmd{

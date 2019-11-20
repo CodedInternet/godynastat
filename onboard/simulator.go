@@ -1,5 +1,10 @@
 package onboard
 
+import (
+	"github.com/CodedInternet/godynastat/onboard/errors"
+	"github.com/abiosoft/ishell"
+)
+
 //import (
 //	"errors"
 //	"fmt"
@@ -16,11 +21,6 @@ package onboard
 //type SimulatedSensor struct {
 //	values     []uint8
 //	rows, cols int
-//}
-//
-//type SimulatedMotor struct {
-//	name            string
-//	current, target int
 //}
 //
 //func (s *SimulatedSensor) SetScale(zero, half, full uint16) {
@@ -120,29 +120,84 @@ package onboard
 //		time.Sleep(MOTOR_INTERVAL)
 //	}
 //}
-//
-//func NewDynastatSimulator(config *DynastatConfig) (dynastat *Dynastat) {
-//	dynastat = new(Dynastat)
-//	dynastat.config = config
-//
-//	switch config.Version {
-//	case 1:
-//		// initialise
-//		dynastat.Motors = make(map[string]MotorInterface, len(config.Motors))
-//		dynastat.sensors = make(map[string]SensorInterface, len(config.Sensors))
-//
-//		for name, conf := range config.Sensors {
-//			dynastat.sensors[name] = NewSimulatedSensor(conf.Rows, conf.Cols)
-//		}
-//
-//		for name := range config.Motors {
-//			m := &SimulatedMotor{name: name, target: 127}
-//			go m.update()
-//			dynastat.Motors[name] = m
-//		}
-//	default:
-//		panic("Unkown version number")
-//	}
-//
-//	return dynastat
-//}
+
+const (
+	rearfootPlatorm int = iota
+	forefootPlatform
+)
+
+type simulatedDynastat struct {
+	out       *ishell.Shell
+	platforms map[string]int
+}
+
+func (d simulatedDynastat) SetRotation(platform string, degFront, degSag float64) (err error) {
+	if _, ok := d.platforms[platform]; !ok {
+		return errors.PlatformNameError{Name: platform}
+	}
+	d.out.Printf("[OK] Setting %s rotation to %.1fº frontal: %.1fº sag\n", platform, degFront, degSag)
+	return
+}
+
+func (d simulatedDynastat) SetHeight(platform string, height float64) (err error) {
+	if _, ok := d.platforms[platform]; !ok {
+		return errors.PlatformNameError{Name: platform}
+	}
+	d.out.Printf("[OK] Setting %s height to %.2fmm\n", platform, height)
+	return
+}
+
+func (d simulatedDynastat) SetFirstRay(platform string, angle float64) (err error) {
+	pType, ok := d.platforms[platform]
+	if !ok {
+		return errors.PlatformNameError{Name: platform}
+	}
+
+	if pType != forefootPlatform {
+		return errors.IncorrectPlatformError{
+			Name:   platform,
+			Action: "first_ray",
+		}
+	}
+
+	d.out.Printf("[OK] Setting %s first ray to %.1fº\n", platform, angle)
+	return
+}
+
+func (d simulatedDynastat) HomePlatform(platform string) (err error) {
+	if _, ok := d.platforms[platform]; !ok {
+		return errors.PlatformNameError{Name: platform}
+	}
+	d.out.Printf("[OK] Homing %s\n", platform)
+	return
+}
+
+func (d simulatedDynastat) GetPlatformNames() (names []string) {
+	for n := range d.platforms {
+		names = append(names, n)
+	}
+	return names
+}
+
+func NewDynastatSimulator(config *DynastatConfig, output *ishell.Shell) Dynastat {
+	d := new(simulatedDynastat)
+	d.out = output
+
+	switch config.Version {
+	case 2:
+		d.platforms = make(map[string]int, len(config.Platforms))
+
+		for name, pConf := range config.Platforms {
+			if len(pConf.Actuators) == 3 {
+				d.platforms[name] = rearfootPlatorm
+			} else {
+				d.platforms[name] = forefootPlatform
+			}
+
+		}
+	default:
+		panic("unkown version number")
+	}
+
+	return d
+}

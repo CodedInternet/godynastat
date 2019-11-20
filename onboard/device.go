@@ -13,9 +13,13 @@ var (
 )
 
 type Dynastat interface {
-	SetRotation(platform string, degFront, degInc float64) (err error)
+	SetRotation(platform string, degFront, degSag float64) (err error)
 	SetHeight(platform string, height float64) (err error)
 	SetFirstRay(platform string, angle float64) (err error)
+
+	HomePlatform(platform string) (err error)
+
+	GetPlatformNames() (names []string)
 }
 
 type ActuatorDynastat struct {
@@ -31,7 +35,7 @@ func NewActuatorDynastat(config DynastatConfig) (d *ActuatorDynastat, err error)
 
 	switch config.Version {
 	case 2:
-		// create Platforms
+		// create platforms
 		d.Platforms = make(map[string]KPlatform, len(config.Platforms))
 		for name, pConf := range config.Platforms {
 			var bus *canbus.CANBus
@@ -102,6 +106,13 @@ func (d *ActuatorDynastat) HomePlatform(platform string) (err error) {
 	}
 
 	return p.Home()
+}
+
+func (d *ActuatorDynastat) GetPlatformNames() (names []string) {
+	for n := range d.Platforms {
+		names = append(names, n)
+	}
+	return names
 }
 
 func (d *ActuatorDynastat) getBus(name string) (bus *canbus.CANBus, err error) {
